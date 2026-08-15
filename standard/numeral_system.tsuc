@@ -1,0 +1,216 @@
+# Tanex Script 进制转换库（2/8/10/16 进制） #;
+# 纯 TSuc 实现 #;
+
+# 十六进制字母表 #;
+
+*** _hexadecimal_characters = "0123456789ABCDEF";
+*** _hexadecimal_lowercase = "0123456789abcdef";
+
+# 字符码 → 单字符字符串 #;
+
+*** _character_string = [*code] => {
+    * builder = string{};
+    builder.push_char(code);
+    return builder;
+};
+
+# 二进制 → 十六进制 #;
+
+@ binary_to_hexadecimal # 二进制字符串转十六进制字符串 #;
+*** binary_to_hexadecimal = [*binary_string] => {
+    * result = string{};
+    * binary_length = binary_string.data.size;
+    * padding = (4 - binary_length % 4) % 4;
+    * value = 0;
+    * index = 0;
+    { index < padding; } $$ {
+        binary_string = "0" + binary_string;
+        index = index + 1;
+    };
+    index = 0;
+    { index < binary_string.data.size; } $$ {
+        value = value * 2 + (binary_string.data.index(index) - 48);
+        (index + 1) % 4 == 0 ? {
+            result.push_char(_hexadecimal_characters.data.index(value));
+            value = 0;
+        } : {};
+        index = index + 1;
+    };
+    return result;
+};
+
+# 十六进制 → 二进制 #;
+
+*** _hexadecimal_binary_map = ["0000","0001","0010","0011","0100","0101","0110","0111","1000","1001","1010","1011","1100","1101","1110","1111"];
+
+@ hexadecimal_to_binary # 十六进制字符串转二进制字符串 #;
+*** hexadecimal_to_binary = [*hexadecimal_string] => {
+    * result = string{};
+    * index = 0;
+    { index < hexadecimal_string.data.size; } $$ {
+        * value = _hexadecimal_value(hexadecimal_string.data.index(index));
+        result = result + _hexadecimal_binary_map.index(value);
+        index = index + 1;
+    };
+    return result;
+};
+
+# 二进制 → 八进制 #;
+
+@ binary_to_octal # 二进制字符串转八进制字符串 #;
+*** binary_to_octal = [*binary_string] => {
+    * result = string{};
+    * padding = (3 - binary_string.data.size % 3) % 3;
+    * index = 0;
+    { index < padding; } $$ {
+        binary_string = "0" + binary_string;
+        index = index + 1;
+    };
+    index = 0;
+    * value = 0;
+    { index < binary_string.data.size; } $$ {
+        value = value * 2 + (binary_string.data.index(index) - 48);
+        (index + 1) % 3 == 0 ? {
+            result.push_char(48 + value);
+            value = 0;
+        } : {};
+        index = index + 1;
+    };
+    return result;
+};
+
+# 八进制 → 二进制 #;
+
+*** _octal_binary_map = ["000","001","010","011","100","101","110","111"];
+
+@ octal_to_binary # 八进制字符串转二进制字符串 #;
+*** octal_to_binary = [*octal_string] => {
+    * result = string{};
+    * index = 0;
+    { index < octal_string.data.size; } $$ {
+        * value = octal_string.data.index(index) - 48;
+        result = result + _octal_binary_map.index(value);
+        index = index + 1;
+    };
+    return result;
+};
+
+# 二进制 → 十进制 #;
+
+@ binary_to_integer # 二进制字符串转十进制整数 #;
+*** binary_to_integer = [*binary_string] => {
+    * result = 0;
+    * index = 0;
+    { index < binary_string.data.size; } $$ {
+        result = result * 2 + (binary_string.data.index(index) - 48);
+        index = index + 1;
+    };
+    return result;
+};
+
+# 十进制 → 二进制 #;
+
+@ integer_to_binary # 十进制整数转二进制字符串 #;
+*** integer_to_binary = [*value] => {
+    * result = "0";
+    value > 0 ? {
+        * builder = string{};
+        { value > 0; } $$ {
+            builder = _character_string(48 + value % 2) + builder;
+            value = value \ 2;
+        };
+        result = builder;
+    } : {};
+    return result;
+};
+
+# 十进制 → 十六进制 #;
+
+@ integer_to_hexadecimal # 十进制整数转十六进制字符串 #;
+*** integer_to_hexadecimal = [*value] => {
+    * result = "0";
+    value > 0 ? {
+        * builder = string{};
+        { value > 0; } $$ {
+            builder = _character_string(_hexadecimal_character(value % 16)) + builder;
+            value = value \ 16;
+        };
+        result = builder;
+    } : {};
+    return result;
+};
+
+# 十六进制 → 十进制 #;
+
+@ hexadecimal_to_integer # 十六进制字符串转十进制整数 #;
+*** hexadecimal_to_integer = [*hexadecimal_string] => {
+    * result = 0;
+    * index = 0;
+    { index < hexadecimal_string.data.size; } $$ {
+        result = result * 16 + _hexadecimal_value(hexadecimal_string.data.index(index));
+        index = index + 1;
+    };
+    return result;
+};
+
+# 八进制 → 十进制 #;
+
+@ octal_to_integer # 八进制字符串转十进制整数 #;
+*** octal_to_integer = [*octal_string] => {
+    * result = 0;
+    * index = 0;
+    { index < octal_string.data.size; } $$ {
+        result = result * 8 + (octal_string.data.index(index) - 48);
+        index = index + 1;
+    };
+    return result;
+};
+
+# 十进制 → 八进制 #;
+
+@ integer_to_octal # 十进制整数转八进制字符串 #;
+*** integer_to_octal = [*value] => {
+    * result = "0";
+    value > 0 ? {
+        * builder = string{};
+        { value > 0; } $$ {
+            builder = _character_string(48 + value % 8) + builder;
+            value = value \ 8;
+        };
+        result = builder;
+    } : {};
+    return result;
+};
+
+# 十六进制数字 → 值 #;
+
+*** _hexadecimal_value = [*character] => {
+    * result = 0;
+    character >= 48 && character <= 57 ? { result = character - 48; } : {};
+    character >= 65 && character <= 70 ? { result = character - 55; } : {};
+    character >= 97 && character <= 102 ? { result = character - 87; } : {};
+    return result;
+};
+
+# 数字 → 十六进制字符码 #;
+
+*** _hexadecimal_character = [*value] => {
+    * result = 48 + value;
+    value >= 10 ? { result = 55 + value; } : {};
+    return result;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "binary_to_hexadecimal",
+    "hexadecimal_to_binary",
+    "binary_to_octal",
+    "octal_to_binary",
+    "binary_to_integer",
+    "integer_to_binary",
+    "integer_to_hexadecimal",
+    "hexadecimal_to_integer",
+    "octal_to_integer",
+    "integer_to_octal"
+];

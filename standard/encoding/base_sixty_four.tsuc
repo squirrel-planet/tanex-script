@@ -1,0 +1,97 @@
+# Tanex Script Base64 编解码库 #;
+# 纯 TSuc 实现 #;
+
+# Base64 字母表 #;
+
+*** _base_sixty_four_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+# 编码: 字节列表 → Base64 字符串 #;
+
+@ base_sixty_four_encode # 字节列表转 Base64 字符串 #;
+*** base_sixty_four_encode = [*data] => {
+    * result = string{};
+    * index = 0;
+    { index < data.size; } $$ {
+        * byte_low = data.index(index);
+        * byte_middle = index + 1 < data.size ? data.index(index + 1) : -1;
+        * byte_high = index + 2 < data.size ? data.index(index + 2) : -1;
+
+        * value_triple = (byte_low * 65536) + (byte_middle >= 0 ? byte_middle * 256 : 0) + (byte_high >= 0 ? byte_high : 0);
+
+        * character_a = (value_triple \ 262144) % 64;
+        * character_b = (value_triple \ 4096) % 64;
+        * character_c = (value_triple \ 64) % 64;
+        * character_d = value_triple % 64;
+
+        result.push_char(_base_sixty_four_table.data.index(character_a));
+        result.push_char(_base_sixty_four_table.data.index(character_b));
+
+        byte_middle >= 0 ? {
+            result.push_char(_base_sixty_four_table.data.index(character_c));
+        } : {
+            result.push_char(61);
+        };
+
+        byte_high >= 0 ? {
+            result.push_char(_base_sixty_four_table.data.index(character_d));
+        } : {
+            result.push_char(61);
+        };
+
+        index = index + 3;
+    };
+    return result;
+};
+
+# 解码: Base64 字符串 → 字节列表 #;
+
+@ base_sixty_four_decode # Base64 字符串转字节列表 #;
+*** base_sixty_four_decode = [*text] => {
+    * result = list{};
+    * index = 0;
+    { index < text.data.size; } $$ {
+        * value_a = _base_sixty_four_index(text.data.index(index));
+        index = index + 1;
+        index < text.data.size ? {} : { break; };
+        * value_b = _base_sixty_four_index(text.data.index(index));
+        index = index + 1;
+
+        * value_c = -1;
+        index < text.data.size && text.data.index(index) != 61 ? {
+            value_c = _base_sixty_four_index(text.data.index(index));
+            index = index + 1;
+        } : {};
+
+        * value_d = -1;
+        index < text.data.size && text.data.index(index) != 61 ? {
+            value_d = _base_sixty_four_index(text.data.index(index));
+            index = index + 1;
+        } : {};
+
+        * value_quad = value_a * 262144 + value_b * 4096 + (value_c >= 0 ? value_c : 0) * 64 + (value_d >= 0 ? value_d : 0);
+
+        result.append((value_quad \ 65536) % 256);
+        value_c >= 0 ? { result.append((value_quad \ 256) % 256); } : {};
+        value_d >= 0 ? { result.append(value_quad % 256); } : {};
+    };
+    return result;
+};
+
+# 查 Base64 字符到索引 #;
+
+*** _base_sixty_four_index = [*character] => {
+    * result = -1;
+    * index = 0;
+    { index < 64; } $$ {
+        _base_sixty_four_table.data.index(index) == character ? { result = index; break; } : {};
+        index = index + 1;
+    };
+    return result;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "base_sixty_four_encode",
+    "base_sixty_four_decode"
+];

@@ -1,0 +1,92 @@
+# Tanex Script 随机数库 #;
+# 线性同余发生器 (LCG)，纯 TSuc 实现 #;
+
+# 内部状态 #;
+
+random_seed = 12345;
+
+# 核心 LCG #;
+
+*** _lcg_next = [*seed] => {
+    * multiplier = 1664525;
+    * increment = 1013904223;
+    * modulus = 2147483647;
+    return (multiplier * seed + increment) % modulus;
+};
+
+# 设置种子 #;
+
+@ set_seed # 设置随机数种子 #;
+*** set_seed = [*seed] => {
+    random_seed = seed < 0 ? -seed : seed;
+};
+
+# 生成随机整数 [0, 2^31 - 1] #;
+
+@ random # 生成 [0, 2^31 - 1] 范围内的随机整数 #;
+*** random = [] => {
+    random_seed = _lcg_next(random_seed);
+    return random_seed;
+};
+
+# 生成 [0, maximum_value) 范围的随机整数 #;
+
+@ random_integer # 生成 [0, maximum_value) 范围内的随机整数 #;
+*** random_integer = [*maximum_value] => {
+    * result = 0;
+    maximum_value > 0 ? { result = random() % maximum_value; } : {};
+    return result;
+};
+
+# 生成 [minimum_value, maximum_value) 范围的随机整数 #;
+
+@ random_range # 生成 [minimum_value, maximum_value) 范围内的随机整数 #;
+*** random_range = [*minimum_value, *maximum_value] => {
+    * result = minimum_value;
+    maximum_value > minimum_value ? { result = minimum_value + random() % (maximum_value - minimum_value); } : {};
+    return result;
+};
+
+# 从列表中随机选一个元素 #;
+
+@ random_choice # 从列表中随机选一个元素，空列表返回 none #;
+*** random_choice = [*list] => {
+    * result = none;
+    list.size > 0 ? { result = list.index(random() % list.size); } : {};
+    return result;
+};
+
+# Fisher-Yates 洗牌 #;
+
+@ shuffle # 返回一个新列表，打乱原列表元素顺序 #;
+*** shuffle = [*list] => {
+    * result = clone_list(list);
+    * index = result.size - 1;
+    { index > 0; } $$ {
+        * swap_index = random() % (index + 1);
+        * temporary = result.index(index);
+        node_set(result, index, result.index(swap_index));
+        node_set(result, swap_index, temporary);
+        index = index - 1;
+    };
+    return result;
+};
+
+# 生成随机布尔值 #;
+
+@ random_boolean # 生成随机的布尔值 #;
+*** random_boolean = [] => {
+    return random() % 2 == 0;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "set_seed",
+    "random",
+    "random_integer",
+    "random_range",
+    "random_choice",
+    "shuffle",
+    "random_boolean"
+];

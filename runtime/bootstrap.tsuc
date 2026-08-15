@@ -1,0 +1,979 @@
+# Tanex Script 标准引导库 #;
+
+# function_type 函数类型：值由解释器在解析函数字面量（=>）时构造，成员：params 参数名列表、defaults 是否有默认值、statements 语句数、code 可执行体；不定义 init 构造器，禁止手动构造 #;
+*** function_type = type_type{};
+
+# 前向声明（供类型约束引用） #;
+*** number;
+
+# 内部函数 #;
+*** standard_output = [*value] => {
+    return value;
+};
+@ standard_output # 向控制台输出值，接收一个任意类型参数 #;
+
+*** help = [** value] => {
+    standard_output << (?? value);
+};
+@ help # 查询值的注解信息，将注解语句定义的说明输出到标准输出 #;
+
+# 布尔类型 #;
+*** boolean = type_type{};
+@ boolean # 布尔类型，成员 value 为 integer，0 为假、非 0 为真 #;
+
+*** boolean.init = [*self, [*value, [integer, number], 0]] => {
+    self.value = value ? 1 : 0;
+};
+
+*** boolean.boolean = [*self] => {
+    return self.value;
+};
+
+@ boolean.addition # 布尔值相加，返回整数（真=1、假=0） #;
+*** boolean.addition = [*self, *other] => {
+    return integer{self.value + other.value};
+};
+
+*** boolean.subtract = [*self, *other] => {
+    return integer{self.value - other.value};
+};
+
+*** boolean.multiply = [*self, *other] => {
+    return integer{self.value * other.value};
+};
+
+*** boolean.divide = [*self, *other] => {
+    return integer{self.value / other.value};
+};
+
+*** boolean.exactly_divisible = [*self, *other] => {
+    return integer{self.value \ other.value};
+};
+
+*** boolean.modulo = [*self, *other] => {
+    return integer{self.value % other.value};
+};
+
+*** boolean.power = [*self, *other] => {
+    return integer{self.value ^ other.value};
+};
+
+*** boolean.string = [*self] => {
+    self.value == 1 ? "true".data : "false".data;
+};
+
+*** true = boolean{1};
+@ true # 布尔真值常量 #;
+*** false = boolean{0};
+@ false # 布尔假值常量 #;
+
+# 空类型 #;
+*** none_type = type_type{};
+@ none_type # 空类型，表示无值状态 #;
+
+*** none_type.boolean = [*self] => {
+    return false;
+};
+
+*** none_type.string = [*self] => {
+    return "none".data;
+};
+
+*** none = none_type{};
+@ none # 空值常量 #;
+
+# 整数（底层数值原语） #;
+*** integer = type_type{};
+@ integer # 整数类型，底层数值原语，支持四则运算 #;
+
+*** integer.init = [*self, [*value, [integer, number], 0]] => {
+    self.value = value;
+};
+
+# 列表节点 #;
+*** _list_get_node = [*node, *index] => {
+    *** r = index == 0 ? node : _list_get_node(node.next, index - 1);
+    return r;
+};
+
+*** list_node = type_type{};
+@ list_node # 列表节点类型，成员 value 和 next #;
+
+*** list_node.value;
+*** list_node.next;
+
+*** list_node.init = [*self, *value, *next] => {
+    self.value = value;
+    self.next = next;
+};
+
+*** list_node.index = [*self, *index] => {
+    *** r = _list_get_node(self, index);
+    return r;
+};
+
+# 列表 #;
+*** list = type_type{};
+@ list # 列表类型，支持 append、index、delete_end 等操作 #;
+
+*** list.init = [*self, [*input_list, [list], none]] => {
+    self.head = none;
+    self.tail = none;
+    self.size = 0;
+    it = type_of(input_list);
+    it == none_type ? {
+    } : {
+        i = 0;
+        { i < input_list.size; } $$ {
+            self.append(input_list[i]);
+            i += 1;
+        };
+    };
+};
+
+*** list.append = [*self, *value] => {
+    node = list_node{value, none};
+    self.head ? {
+        self.tail.next = node;
+        self.tail = node;
+    } : {
+        self.head = node;
+        self.tail = node;
+    };
+    self.size = self.size + 1;
+};
+
+*** list.string = [*self] => {
+    return self;
+};
+
+*** list.index = [*self, *index] => {
+    *** node = _list_get_node(self.head, index);
+    return node.value;
+};
+
+*** list.index_set = [*self, *index, *value] => {
+    *** node = _list_get_node(self.head, index);
+    node.value = value;
+};
+
+*** list.delete_end = [*self] => {
+    self.head ? {
+        self.size == 1 ? {
+            self.head = none;
+            self.tail = none;
+            self.size = 0;
+        } : {
+            node = self.head;
+            i = 0;
+            { i < self.size - 2; } $$ {
+                node = node.next;
+                i += 1;
+            };
+            node.next = none;
+            self.tail = node;
+            self.size = self.size - 1;
+        };
+    } : {};
+};
+
+@ list.addition # 列表拼接，返回包含两个列表全部元素的新列表 #;
+*** list.addition = [*self, *other] => {
+    result = list{};
+    i = 0;
+    { i < self.size; } $$ {
+        result.append(self[i]);
+        i += 1;
+    };
+    j = 0;
+    { j < other.size; } $$ {
+        result.append(other[j]);
+        j += 1;
+    };
+    return result;
+};
+
+*** list.multiply = [*self, *other] => {
+    result = list{};
+    k = 0;
+    { k < other; } $$ {
+        j = 0;
+        { j < self.size; } $$ {
+            result.append(self[j]);
+            j += 1;
+        };
+        k += 1;
+    };
+    return result;
+};
+
+# 字符串 #;
+*** string = type_type{};
+@ string # 字符串类型，底层字符序列，支持拼接和索引 #;
+
+*** string.init = [*self] => {
+    self.data = list{};
+};
+
+*** string.push_char = [*self, *ch] => {
+    self.data.append(ch);
+};
+
+*** string.string = [*self] => {
+    return self.data;
+};
+
+*** string.index = [*self, *index] => {
+    return self.data[index];
+};
+
+@ string.addition # 字符串拼接，返回新字符串 #;
+*** string.addition = [*self, *other] => {
+    result = string{};
+    result.data = self.data + other.data;
+    return result;
+};
+
+*** string.multiply = [*self, *other] => {
+    result = string{};
+    result.data = self.data * other;
+    return result;
+};
+
+*** string.equal = [*self, *other] => {
+    type_of(other) == string ? {
+        self.data.size != other.data.size ? {
+            return 0;
+        } : {
+            i = 0;
+            same = 1;
+            { i < self.data.size; } $$ {
+                self.data[i] == other.data[i] ? {
+                } : {
+                    same = 0;
+                };
+                i += 1;
+            };
+            return same;
+        };
+    } : {
+        e = error{"string: 比较对象必须是 string"};
+        e.throw();
+    };
+};
+
+# 数字辅助函数 #;
+*** digits_of = [*n] => {
+@ digits_of # 计算整数的十进制位数，返回 integer #;
+    *** r = n == 0 ? 0 : 1 + digits_of(n \ 10);
+    return r;
+};
+
+*** ten_pow = [*n] => {
+@ ten_pow # 计算 10 的 n 次幂，返回 integer #;
+    *** r = n == 0 ? 1 : 10 * ten_pow(n - 1);
+    return r;
+};
+
+*** max_int = [*a, *b] => {
+@ max_int # 返回两个整数中的较大值 #;
+    *** r = a > b ? a : b;
+    return r;
+};
+
+# 数字类型（定点小数） #;
+*** number = type_type{};
+@ number # 定点小数类型，成员 front（整数部分）和 back（小数部分），支持四则运算 #;
+
+*** _number_coerce = [*other] => {
+    t = type_of(other);
+    t == number ? other : (
+        t == integer ? number{other, 0} : {
+            e = error{"number: 参数必须是 number 或 integer"};
+            e.throw();
+        }
+    );
+};
+
+*** number.init = [*self, [*value, [integer, number], 0], [*back, [integer, number], 0]] => {
+    value.front | err : {
+        self.front = value;
+        self.back = back;
+        self.back_digits = digits_of(back);
+    } : {
+        self.front = value.front;
+        self.back = value.back;
+        self.back_digits = value.back_digits;
+    };
+};
+
+@ number.addition # 定点小数加法，按小数位对齐后相加，返回 number #;
+*** number.addition = [*self, *other] => {
+    o = _number_coerce(other);
+    *** da = digits_of(self.back);
+    *** db = digits_of(o.back);
+    *** max_d = max_int(da, db);
+    *** pa = ten_pow(max_d - da);
+    *** pb = ten_pow(max_d - db);
+    *** p_max = ten_pow(max_d);
+    *** aligned_a = self.back * pa;
+    *** aligned_b = o.back * pb;
+    *** sum_back_raw = aligned_a + aligned_b;
+    *** carry = sum_back_raw \ p_max;
+    *** result_back = sum_back_raw - carry * p_max;
+    *** result_front = self.front + o.front + carry;
+    return number{result_front, result_back};
+};
+
+*** number.subtract = [*self, *other] => {
+    o = _number_coerce(other);
+    *** da = digits_of(self.back);
+    *** db = digits_of(o.back);
+    *** max_d = max_int(da, db);
+    *** pa = ten_pow(max_d - da);
+    *** pb = ten_pow(max_d - db);
+    *** p_max = ten_pow(max_d);
+    *** ba = self.back * pa;
+    *** bb = o.back * pb;
+    *** borrow = ba < bb ? 1 : 0;
+    *** rb = borrow == 1 ? ba + p_max - bb : ba - bb;
+    *** rf = self.front - o.front - borrow;
+    return number{rf, rb};
+};
+
+*** number.multiply = [*self, *other] => {
+    o = _number_coerce(other);
+    *** da = digits_of(self.back);
+    *** db = digits_of(o.back);
+    *** va = self.front * ten_pow(da) + self.back;
+    *** vb = o.front * ten_pow(db) + o.back;
+    *** prod = va * vb;
+    *** td = da + db;
+    *** p = ten_pow(td);
+    return number{prod \ p, prod % p};
+};
+
+*** number.divide = [*self, *other] => {
+    o = _number_coerce(other);
+    $ (o.front == 0 && o.back == 0) ? infinite{1} : _number_divide(self, o);
+};
+
+*** _number_divide = [*a, *b] => {
+    da = digits_of(a.back);
+    db = digits_of(b.back);
+    num = a.front * ten_pow(da) * ten_pow(db) + a.back * ten_pow(db);
+    den = b.front * ten_pow(db) * ten_pow(da) + b.back * ten_pow(da);
+    r_front = num \ den;
+    rem = num % den;
+    r_back = 0;
+    bd = 0;
+    { rem != 0 && bd < 10; } $$ {
+        rem = rem * 10;
+        d = rem \ den;
+        rem = rem % den;
+        r_back = r_back * 10 + d;
+        bd = bd + 1;
+    };
+    return number{r_front, r_back};
+};
+
+*** number.exactly_divisible = [*self, *other] => {
+    o = _number_coerce(other);
+    $ (o.front == 0 && o.back == 0) ? number{0, 0} : _number_exact(self, o);
+};
+
+*** _number_exact = [*a, *b] => {
+    da = digits_of(a.back);
+    db = digits_of(b.back);
+    num = a.front * ten_pow(da) * ten_pow(db) + a.back * ten_pow(db);
+    den = b.front * ten_pow(db) * ten_pow(da) + b.back * ten_pow(da);
+    return number{num \ den, 0};
+};
+
+*** number.modulo = [*self, *other] => {
+    o = _number_coerce(other);
+    $ (o.front == 0 && o.back == 0) ? number{0, 0} : _number_mod(self, o);
+};
+
+*** _number_mod = [*a, *b] => {
+    da = digits_of(a.back);
+    db = digits_of(b.back);
+    num = a.front * ten_pow(da) * ten_pow(db) + a.back * ten_pow(db);
+    den = b.front * ten_pow(db) * ten_pow(da) + b.back * ten_pow(da);
+    r = num % den;
+    scale = ten_pow(da + db);
+    front = r \ scale;
+    back = r % scale;
+    { back > 0 && back % 10 == 0; } $$ {
+        back = back \ 10;
+    };
+    return number{front, back};
+};
+
+*** number.power = [*self, *other] => {
+    o = _number_coerce(other);
+    $ o.front == 0 ? number{1, 0} : _number_power(self, o);
+};
+
+*** _number_power = [*base, *exp] => {
+    result = number{1, 0};
+    i = 0;
+    { i < exp.front; } $$ {
+        result = result * base;
+        i += 1;
+    };
+    return result;
+};
+
+*** number.less = [*self, *other] => {
+    o = _number_coerce(other);
+    $ self.front != o.front ? self.front < o.front : _back_less(self, o);
+};
+
+*** _back_less = [*a, *b] => {
+    da = digits_of(a.back);
+    db = digits_of(b.back);
+    md = max_int(da, db);
+    ba = a.back * ten_pow(md - da);
+    bb = b.back * ten_pow(md - db);
+    return ba != bb ? ba < bb : false;
+};
+
+*** number.equal = [*self, *other] => {
+    o = _number_coerce(other);
+    return self.front == o.front && self.back == o.back;
+};
+
+*** number.string = [*self] => {
+    r = list{};
+    f = self.front;
+    f < 0 ? {
+        r.append(45);
+        f = -f;
+    } : {};
+    f == 0 ? {
+        r.append(48);
+    } : {
+        against_r = list{};
+        i = f;
+        {return i > 0;} $$ {
+            this = i % 10;
+            against_r.append(this + 48);
+            i \= 10;
+        };
+        k = against_r.size - 1;
+        {k >= 0;} $$ {
+            r.append(against_r[k]);
+            k -= 1;
+        };
+    };
+    b = self.back;
+    b > 0 ? {
+        r.append(46);
+        bd = digits_of(b);
+        raw_bd = self.back_digits | err : bd : self.back_digits;
+        pad = raw_bd - bd;
+        {pad > 0;} $$ {
+            r.append(48);
+            pad = pad - 1;
+        };
+        j = bd;
+        {j > 0;} $$ {
+            pw = ten_pow(j - 1);
+            dg = b \ pw;
+            r.append(dg + 48);
+            b = b - dg * pw;
+            j = j - 1;
+        };
+    } : {};
+    return r;
+};
+
+# 地址类型 #;
+*** address = type_type{};
+@ address # 地址类型，成员 address_string 存储运行时内存地址字符串 #;
+*** address.init = [*self, [*value, [string, type_type], '']] => {
+    self.address_string = value;
+};
+
+# 错误与警告（<- throw / try-catch 机制） #;
+*** error = type_type{};
+@ error # 错误类型，可通过 throw 方法抛出以中断程序执行 #;
+
+*** error.init = [*self, [*value, [string, type_type], '']] => {
+    *** self.what = value;
+};
+
+*** error.throw = [*self] => {
+    <- self;
+};
+
+*** warning = type_type{};
+@ warning # 警告类型，可通过 throw 方法抛出但不中断程序 #;
+
+*** warning.init = [*self, [*value, [string, type_type], '']] => {
+    *** self.what = value;
+};
+
+*** warning.throw = [*self] => {
+    <- self;
+};
+
+# 无穷类型 #;
+*** infinite_type = type_type{};
+@ infinite_type # 无穷大类型，表示正无穷或负无穷，支持符号运算 #;
+
+*** infinite_type.init = [*self, [*value, integer, 1]] => {
+    self.sign = value < 0 ? -1 : 1;
+    self.infinity = true;
+};
+
+*** _is_nan = [*v] => {
+    return v.nan_marker | _ : false : true;
+};
+
+*** _is_inf = [*v] => {
+    return v.infinity | _ : false : true;
+};
+
+*** _neg = [*v] => {
+    _is_inf(v) ? infinite{-v.sign} : (_is_nan(v) ? nan : v);
+};
+
+*** _finite_sign = [*v] => {
+    f = v.front | err : v : v.front;
+    return f < 0 ? -1 : 1;
+};
+
+*** _is_zero = [*v] => {
+    f = v.front | err : v : v.front;
+    b = v.back | err : 0 : v.back;
+    return f == 0 && b == 0;
+};
+
+@ infinite_type.addition # 无穷大加法，同号无穷大返回自身，异号返回 nan #;
+*** infinite_type.addition = [*self, *other] => {
+    $ _is_nan(other) ? nan : _inf_add(self, other);
+};
+
+*** _inf_add = [*self, *other] => {
+    $ _is_inf(other) ? (self.sign == other.sign ? infinite{self.sign} : nan) : infinite{self.sign};
+};
+
+*** infinite_type.subtract = [*self, *other] => {
+    $ _is_nan(other) ? nan : _inf_add(self, _neg(other));
+};
+
+*** infinite_type.multiply = [*self, *other] => {
+    $ _is_nan(other) ? nan : _inf_mul(self, other);
+};
+
+*** _inf_mul = [*self, *other] => {
+    $ _is_inf(other) ? infinite{
+        self.sign * other.sign
+    } : (_is_zero(
+        other) ? nan : infinite{self.sign * _finite_sign(other)});
+};
+
+*** infinite_type.divide = [*self, *other] => {
+    $ _is_nan(other) ? nan : _inf_div(self, other);
+};
+
+*** _inf_div = [*self, *other] => {
+    $ _is_inf(other) ? nan : infinite{self.sign * _finite_sign(other)};
+};
+
+*** infinite_type.exactly_divisible = [*self, *other] => {
+    $ _is_nan(other) ? nan : _inf_div(self, other);
+};
+
+*** infinite_type.modulo = [*self, *other] => {
+    $ _is_nan(other) ? nan : (_is_inf(other) ? nan : number{0, 0});
+};
+
+*** infinite_type.power = [*self, *other] => {
+    $ _is_nan(other) ? nan : (
+        _is_zero(other) ? number{1, 0} : infinite{self.sign});
+};
+
+*** infinite_type.less = [*self, *other] => {
+    $ _is_nan(other) ? false : _inf_less(self, other);
+};
+
+*** _inf_less = [*self, *other] => {
+    $ _is_inf(other) ? self.sign < other.sign : self.sign < 0;
+};
+
+*** infinite_type.equal = [*self, *other] => {
+    $ _is_nan(other) ? false : _inf_equal(self, other);
+};
+
+*** _inf_equal = [*self, *other] => {
+    $ _is_inf(other) ? self.sign == other.sign : false;
+};
+
+# NaN 类型 #;
+*** nan_type = type_type{};
+@ nan_type # 非数值类型（Not a Number - NaN），任何运算返回自身或 false #;
+
+*** nan_type.init = [*self, [*value, integer, 0]] => {
+    self.nan_marker = true;
+};
+
+@ nan_type.addition # NaN 加法，任何数加 NaN 返回 nan #;
+*** nan_type.addition = [*self, *other] => { return nan; };
+*** nan_type.subtract = [*self, *other] => { return nan; };
+*** nan_type.multiply = [*self, *other] => { return nan; };
+*** nan_type.divide = [*self, *other] => { return nan; };
+*** nan_type.exactly_divisible = [*self, *other] => { return nan; };
+*** nan_type.modulo = [*self, *other] => { return nan; };
+*** nan_type.power = [*self, *other] => { return nan; };
+*** nan_type.less = [*self, *other] => { return false; };
+*** nan_type.equal = [*self, *other] => { return false; };
+
+# nan 与 infinite 常量标识符 #;
+*** nan = nan_type{};
+@ nan # 非数值常量（NaN） #;
+*** infinite = infinite_type{1};
+@ infinite # 正无穷大常量 #;
+
+# 字典类型 #;
+*** dictionary = type_type{};
+@ dictionary # 字典类型，哈希桶存储：buckets 为固定数量桶链表，按键哈希定位桶、桶内链式；成员 size 为键值对数，支持 string/hash 特殊成员 #;
+
+*** _dictionary_bucket_count = 16;
+
+*** dictionary.init = [*self, [*input, [list, dictionary], none]] => {
+    self.bucket_count = _dictionary_bucket_count;
+    self.buckets = list{};
+    i = 0;
+    { i < _dictionary_bucket_count; } $$ {
+        self.buckets.append(list{});
+        i += 1;
+    };
+    self.size = 0;
+    it = type_of(input);
+    it == none_type ? {
+    } : {
+        input.buckets | err : {
+            _dictionary_parse(self, input);
+        } : {
+            bi = 0;
+            { bi < input.bucket_count; } $$ {
+                bucket = input.buckets[bi];
+                i = 0;
+                { i < bucket.size; } $$ {
+                    _dictionary_insert(self, bucket[i]);
+                    i += 1;
+                };
+                bi += 1;
+            };
+        };
+    };
+};
+
+*** _dictionary_check_key = [*k] => {
+    t = type_of(k);
+    t == integer ? {} : {
+        t == string ? {} : {
+            t == boolean ? {} : {
+                t == number ? {} : {
+                    e = error{"dictionary: 键必须是可哈希值（integer、string、boolean、number）"};
+                    e.throw();
+                };
+            };
+        };
+    };
+};
+
+*** _dictionary_bucket_index = [*k] => {
+    h = _dictionary_hash_value(k);
+    h < 0 ? {
+        h = -h;
+    } : {};
+    return h % _dictionary_bucket_count;
+};
+
+*** dictionary.index = [*self, *key] => {
+    idx = _dictionary_bucket_index(key);
+    bucket = self.buckets[idx];
+    i = 0;
+    found_value = none;
+    found = 0;
+    { i < bucket.size; } $$ {
+        found == 1 ? {} : {
+            bucket[i][0] == key ? {
+                found_value = _list_get_node(bucket[i].head, 1);
+                found = 1;
+            } : {};
+        };
+        i += 1;
+    };
+    return found_value;
+};
+
+*** dictionary.index_set = [*self, *key, *value] => {
+    _dictionary_insert(self, [key, value]);
+};
+
+*** _dictionary_insert = [*self, *pair] => {
+    idx = _dictionary_bucket_index(pair[0]);
+    bucket = self.buckets[idx];
+    i = 0;
+    found = 0;
+    { i < bucket.size; } $$ {
+        bucket[i][0] == pair[0] ? {
+            found = 1;
+        } : {};
+        i += 1;
+    };
+    found == 1 ? {
+        new_buckets = list{};
+        bi = 0;
+        { bi < self.bucket_count; } $$ {
+            cur = self.buckets[bi];
+            new_bucket = list{};
+            j = 0;
+            { j < cur.size; } $$ {
+                cur[j][0] == pair[0] ? {
+                } : {
+                    new_bucket.append(cur[j]);
+                };
+                j += 1;
+            };
+            bi == idx ? {
+                new_bucket.append(pair);
+            } : {};
+            new_buckets.append(new_bucket);
+            bi += 1;
+        };
+        self.buckets = new_buckets;
+    } : {
+        bucket.append(pair);
+        self.size = self.size + 1;
+    };
+};
+
+*** _dictionary_parse = [*self, *input] => {
+    input.head | err : {
+        e = error{"dictionary: 参数必须是 list 或 dictionary"};
+        e.throw();
+    } : {
+        input.size == 0 ? {
+        } : {
+            first = input[0];
+            first.head | err : {
+                input.size % 2 == 0 ? {
+                    i = 0;
+                    { i < input.size; } $$ {
+                        k = input[i];
+                        v = input[i + 1];
+                        _dictionary_check_key(k);
+                        pair = list{};
+                        pair.append(k);
+                        pair.append(v);
+                        _dictionary_insert(self, pair);
+                        i += 2;
+                    };
+                } : {
+                    e = error{"dictionary: 扁平格式的键值数量必须为偶数"};
+                    e.throw();
+                };
+            } : {
+                i = 0;
+                { i < input.size; } $$ {
+                    pair = input[i];
+                    pair.head | err : {
+                        e = error{"dictionary: 成对格式中每项必须是 [key, value] 列表"};
+                        e.throw();
+                    } : {
+                        pair.size == 2 ? {
+                            k = pair[0];
+                            v = pair[1];
+                            _dictionary_check_key(k);
+                            _dictionary_insert(self, pair);
+                        } : {
+                            e = error{"dictionary: 成对格式中每项必须为两个元素的 [key, value]"};
+                            e.throw();
+                        };
+                    };
+                    i += 1;
+                };
+            };
+        };
+    };
+};
+
+*** _dictionary_string_hash = [*s] => {
+    h = 0;
+    i = 0;
+    { i < s.data.size; } $$ {
+        h = h + s.data[i];
+        i += 1;
+    };
+    return h;
+};
+
+*** _dictionary_hash_value = [*x] => {
+    t = type_of(x);
+    t == integer ? x : (
+        t == boolean ? x.value : (
+            t == string ? _dictionary_string_hash(x) : (
+                t == number ? (x.front + x.back) : (
+                    t == dictionary ? x.hash() : 0
+                )
+            )
+        )
+    );
+};
+
+*** dictionary.hash = [*self] => {
+    h = 0;
+    bi = 0;
+    { bi < self.bucket_count; } $$ {
+        bucket = self.buckets[bi];
+        i = 0;
+        { i < bucket.size; } $$ {
+            pair = bucket[i];
+            h = h + _dictionary_hash_value(pair[0]) + _dictionary_hash_value(pair[1]);
+            i += 1;
+        };
+        bi += 1;
+    };
+    return h;
+};
+
+# string 特殊成员：输出 {k: v, k2: v2} 形式，键值支持 integer/string/boolean/number/dictionary/list/none #;
+*** _dictionary_int_chars = [*n] => {
+    r = list{};
+    n < 0 ? {
+        r.append(45);
+        n = -n;
+    } : {};
+    n == 0 ? {
+        r.append(48);
+    } : {
+        rev = list{};
+        i = n;
+        { i > 0; } $$ {
+            rev.append(i % 10 + 48);
+            i \= 10;
+        };
+        j = rev.size - 1;
+        { j >= 0; } $$ {
+            r.append(rev[j]);
+            j -= 1;
+        };
+    };
+    return r;
+};
+
+*** _list_value_chars = [*x] => {
+    r = list{};
+    r.append(91);
+    i = 0;
+    { i < x.size; } $$ {
+        i == 0 ? {
+        } : {
+            r.append(44);
+            r.append(32);
+        };
+        vc = _dictionary_value_chars(x[i]);
+        j = 0;
+        { j < vc.size; } $$ {
+            r.append(vc[j]);
+            j += 1;
+        };
+        i += 1;
+    };
+    r.append(93);
+    return r;
+};
+
+*** _dictionary_value_chars = [*x] => {
+    t = type_of(x);
+    t == integer ? _dictionary_int_chars(x) : (
+        t == string ? x.data : (
+            t == boolean ? (x.value ? "true".data : "false".data) : (
+                t == number ? x.string() : (
+                    t == dictionary ? x.string() : (
+                        t == list ? _list_value_chars(x) : (
+                            t == none_type ? "none".data : list{}
+                        )
+                    )
+                )
+            )
+        )
+    );
+};
+
+*** dictionary.string = [*self] => {
+    r = list{};
+    r.append(123);
+    first_flag = 1;
+    bi = 0;
+    { bi < self.bucket_count; } $$ {
+        bucket = self.buckets[bi];
+        i = 0;
+        { i < bucket.size; } $$ {
+            pair = bucket[i];
+            first_flag ? {
+                first_flag = 0;
+            } : {
+                r.append(44);
+                r.append(32);
+            };
+            kc = _dictionary_value_chars(pair[0]);
+            j = 0;
+            { j < kc.size; } $$ {
+                r.append(kc[j]);
+                j += 1;
+            };
+            r.append(58);
+            vc = _dictionary_value_chars(pair[1]);
+            j = 0;
+            { j < vc.size; } $$ {
+                r.append(vc[j]);
+                j += 1;
+            };
+            i += 1;
+        };
+        bi += 1;
+    };
+    r.append(125);
+    return r;
+};
+
+# public 声明可引用内容 #;
+*** public = [
+    "type_type",
+    "standard_output",
+    "help",
+    "boolean",
+    "true",
+    "false",
+    "none_type",
+    "none",
+    "integer",
+    "list_node",
+    "list",
+    "string",
+    "number",
+    "address",
+    "error",
+    "warning",
+    "infinite_type",
+    "nan_type",
+    "nan",
+    "infinite",
+    "dictionary",
+    "code",
+    "library",
+    "function_type"
+];
+
+*** code = type_type{};
+
+*** library = type_type{};
+
+@ code # 函数/代码块类型：值由解释器在解析函数字面量时构造，成员信息以 dictionary 承载（params 参数名列表、defaults 是否有默认值、statements 语句数）；不定义 init 构造器，禁止手动构造 #;

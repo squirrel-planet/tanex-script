@@ -1,0 +1,268 @@
+# Tanex Script 数学库 #;
+# 数学常量与函数，依赖 standard 库 #;
+
+# 算术函数 #;
+
+@ abs # 返回绝对值 #;
+*** abs = [*value] => {
+    return value < 0 ? -value : value;
+};
+
+@ sign # 返回符号：正数为 1，负数为 -1，零为 0 #;
+*** sign = [*value] => {
+    return value > 0 ? 1 : (value < 0 ? -1 : 0);
+};
+
+@ min # 返回两个数中的较小值 #;
+*** min = [*first, *second] => {
+    return first < second ? first : second;
+};
+
+@ max # 返回两个数中的较大值 #;
+*** max = [*first, *second] => {
+    return first > second ? first : second;
+};
+
+@ clamp # 将值限制在 [lower_bound, upper_bound] 区间内 #;
+*** clamp = [*value, *lower_bound, *upper_bound] => {
+    return value < lower_bound ? lower_bound : (value > upper_bound ? upper_bound : value);
+};
+
+@ gcd # 计算两个整数的最大公约数 #;
+*** gcd = [*first, *second] => {
+    *** result = second == 0 ? first : gcd(second, first % second);
+    return result;
+};
+
+@ lcm # 计算两个整数的最小公倍数 #;
+*** lcm = [*first, *second] => {
+    return first * second \ gcd(first, second);
+};
+
+@ is_even # 判断整数是否为偶数 #;
+*** is_even = [*value] => {
+    return value % 2 == 0;
+};
+
+@ is_odd # 判断整数是否为奇数 #;
+*** is_odd = [*value] => {
+    return value % 2 != 0;
+};
+
+@ is_prime # 判断整数是否为质数 #;
+*** is_prime = [*value] => {
+    * result = true;
+    value < 2 ? { result = false; } : {};
+    * index = 2;
+    { result && index * index <= value; } $$ {
+        value % index == 0 ? { result = false; } : {};
+        index = index + 1;
+    };
+    return result;
+};
+
+@ factorial # 计算非负整数的阶乘 #;
+*** factorial = [*value] => {
+    value < 0 ? { <- error{"factorial: 参数不能为负数"}; } : {};
+    *** result = value <= 1 ? 1 : value * factorial(value - 1);
+    return result;
+};
+
+@ power_integer # 计算整数的幂，指数为非负整数 #;
+*** power_integer = [*base, *exponent] => {
+    * result = exponent < 0 ? 0 : (exponent == 0 ? 1 : base * power_integer(base, exponent - 1));
+    return result;
+};
+
+@ square_root_integer # 计算整数的整数平方根（向下取整） #;
+*** square_root_integer = [*value] => {
+    value < 0 ? { <- error{"square_root_integer: 参数不能为负数"}; } : {};
+    * result = 0;
+    value > 0 ? {
+        * current = value;
+        * next_guess = (current + value \ current) \ 2;
+        { next_guess < current; } $$ {
+            current = next_guess;
+            next_guess = (current + value \ current) \ 2;
+        };
+        result = current;
+    } : {};
+    return result;
+};
+
+# 数学常量（number 类型近似值） #;
+
+@ pi # 圆周率近似值 #;
+*** pi = number{3, 1416};
+
+@ e # 自然对数的底近似值 #;
+*** e = number{2, 718};
+
+@ square_root_two # 根号 2 的近似值 #;
+*** square_root_two = number{1, 414};
+
+# 平方根（牛顿法，number 类型） #;
+
+@ square_root # 计算非负数的平方根，返回 number 类型 #;
+*** square_root = [*value] => {
+    *** result = value.front | _ : _square_root_integer(value) : _square_root_number(value);
+    return result;
+};
+
+*** _square_root_integer = [*value] => {
+    value < 0 ? { <- error{"sqrt: 参数不能为负数"}; } : {};
+    * result = number{0, 0};
+    value > 0 ? {
+        * guess = number{value, 0};
+        * previous = number{0, 0};
+        { guess != previous; } $$ {
+            previous = guess;
+            guess = (guess + number{value, 0} / guess) / number{2, 0};
+        };
+        result = guess;
+    } : {};
+    return result;
+};
+
+*** _square_root_number = [*value] => {
+    value.front < 0 ? { <- error{"sqrt: 参数不能为负数"}; } : {};
+    * result = number{0, 0};
+    value.front == 0 && value.back == 0 ? {} : {
+        * guess = value;
+        * previous = number{0, 0};
+        * index = 0;
+        { index < 10; } $$ {
+            previous = guess;
+            guess = (guess + value / guess) / number{2, 0};
+            index = index + 1;
+        };
+        result = guess;
+    };
+    return result;
+};
+
+# Fibonacci #;
+
+@ fibonacci # 计算非负整数的斐波那契数 #;
+*** fibonacci = [*value] => {
+    value < 0 ? { <- error{"fibonacci: 参数不能为负数"}; } : {};
+    * result = 0;
+    value == 1 ? { result = 1; } : {
+        value > 1 ? {
+            * first = 0;
+            * second = 1;
+            * index = 2;
+            { index <= value; } $$ {
+                * next_value = first + second;
+                first = second;
+                second = next_value;
+                index = index + 1;
+            };
+            result = second;
+        } : {};
+    };
+    return result;
+};
+
+# 完美平方检测 #;
+
+@ is_perfect_square # 判断整数是否为完全平方数 #;
+*** is_perfect_square = [*value] => {
+    * result = false;
+    value >= 0 ? {
+        * root = square_root_integer(value);
+        result = root * root == value;
+    } : {};
+    return result;
+};
+
+# N 次方根（牛顿法，整数近似） #;
+
+@ nth_root_integer # 计算整数的 degree 次方根（整数近似） #;
+*** nth_root_integer = [*value, *degree] => {
+    degree <= 0 ? { <- error{"nth_root: 次数必须为正整数"}; } : {};
+    value < 0 ? {
+        degree % 2 == 0 ? { <- error{"nth_root: 负数不能开偶次方"}; } : {};
+    } : {};
+    * result = 0;
+    value < 0 ? {
+        result = -nth_root_integer(-value, degree);
+    } : {
+        value == 0 ? { result = 0; } : {
+            degree == 1 ? { result = value; } : {
+                * guess = value;
+                { true; } $$ {
+                    * new_guess = ((degree - 1) * guess + value \ power_integer(guess, degree - 1)) \ degree;
+                    new_guess >= guess ? { break; } : {};
+                    guess = new_guess;
+                };
+                result = guess;
+            };
+        };
+    };
+    return result;
+};
+
+# 组合数与排列数 #;
+
+@ combinations # 计算从 total 个元素中取 count 个的组合数 #;
+*** combinations = [*total, *count] => {
+    * result = 1;
+    count < 0 ? { result = 0; } : {
+        count > total ? { result = 0; } : {
+            count = count < total - count ? count : total - count;
+            * accumulator = 1;
+            * index = 1;
+            { index <= count; } $$ {
+                accumulator = accumulator * (total - count + index) \ index;
+                index = index + 1;
+            };
+            result = accumulator;
+        };
+    };
+    return result;
+};
+
+@ permutations # 计算从 total 个元素中取 count 个的排列数 #;
+*** permutations = [*total, *count] => {
+    * result = 1;
+    count < 0 ? { result = 0; } : {
+        count > total ? { result = 0; } : {
+            * accumulator = 1;
+            * index = 0;
+            { index < count; } $$ {
+                accumulator = accumulator * (total - index);
+                index = index + 1;
+            };
+            result = accumulator;
+        };
+    };
+    return result;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "abs",
+    "sign",
+    "min",
+    "max",
+    "clamp",
+    "gcd",
+    "lcm",
+    "is_even",
+    "is_odd",
+    "is_prime",
+    "factorial",
+    "power_integer",
+    "square_root_integer",
+    "pi",
+    "e",
+    "square_root_two",
+    "square_root",
+    "fibonacci",
+    "is_perfect_square",
+    "nth_root_integer",
+    "combinations",
+    "permutations"
+];

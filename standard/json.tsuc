@@ -1,0 +1,346 @@
+# Tanex Script JSON 库 #;
+# JSON 序列化与反序列化，纯 TSuc 实现 #;
+# 注意: TSuc 无原生 Object 类型，JSON 对象用 dictionary 表示 #;
+
+# 辅助: 类型判断 #;
+
+# 辅助: 字符追加 #;
+
+*** _push_character = [*builder, *character] => {
+    builder.data.append(character);
+};
+
+*** _push_string = [*builder, *text] => {
+    * data = text.data | _ : none : text.data;
+    is_none(data) ? { data = text; } : {};
+    * index = 0;
+    { index < data.size; } $$ {
+        builder.data.append(data.index(index));
+        index = index + 1;
+    };
+};
+
+# stringify: TSuc 值 → JSON 字符串 #;
+
+@ stringify # 将值序列化为 JSON 字符串，支持整数、字符串、布尔、none、列表 #;
+*** stringify = [*value] => {
+    *** result = _stringify_value(value);
+    return result;
+};
+
+# 整数 → 十进制字符串 #;
+
+*** _stringify_integer = [*value] => {
+    * negative = value < 0;
+    * number = negative ? -value : value;
+    * builder = string{};
+    number == 0 ? { builder.push_char(48); } : {
+        { number > 0; } $$ {
+            builder.push_char(48 + number % 10);
+            number = number \ 10;
+        };
+    };
+    negative ? { builder.push_char(45); } : {};
+    * result = string{};
+    * index = builder.data.size;
+    { index > 0; } $$ {
+        result.push_char(builder.data.index(index - 1));
+        index = index - 1;
+    };
+    return result;
+};
+
+*** _stringify_value = [*value] => {
+    * result = none;
+
+    is_none(value) ? { result = _new_string_from([110, 117, 108, 108]); } : {};
+
+    is_none(result) ? { result = type_of(value) == integer ? _stringify_integer(value) : none; } : {};
+
+    is_none(result) ? { result = value.data | _ : none : _escape_string(value); } : {};
+    is_none(result) ? { result = value.front | _ : none : value.string(); } : {};
+    is_none(result) ? { result = value.buckets | _ : none : _stringify_dictionary(value); } : {};
+    is_none(result) ? { result = value.size | _ : none : _stringify_list(value); } : {};
+    is_none(result) ? { result = value.value | _ : none : _stringify_boolean(value); } : {};
+
+    is_none(result) ? { result = value.nan_marker | _ : none : <- error{"stringify: nan 不是合法的 JSON 值"}; } : {};
+    is_none(result) ? { result = value.infinity | _ : none : <- error{"stringify: infinite 不是合法的 JSON 值"}; } : {};
+
+    is_none(result) ? { <- error{"stringify: 该值类型无法序列化为 JSON"}; } : {};
+    return result;
+};
+
+*** _stringify_boolean = [*value] => {
+    *** result = value.value ? _new_string_from([116, 114, 117, 101]) : _new_string_from([102, 97, 108, 115, 101]);
+    return result;
+};
+
+*** _stringify_list = [*list] => {
+    * builder = string{};
+    _push_character(builder, 91);
+    * index = 0;
+    { index < list.size; } $$ {
+        index > 0 ? { _push_character(builder, 44); } : {};
+        sub_value = _stringify_value(list.index(index));
+        _push_string(builder, sub_value);
+        index = index + 1;
+    };
+    _push_character(builder, 93);
+    return builder;
+};
+
+*** _stringify_dictionary = [*dict] => {
+    * builder = string{};
+    _push_character(builder, 123);
+    * written = 0;
+    * bucket_index = 0;
+    { bucket_index < dict.bucket_count; } $$ {
+        * bucket = dict.buckets.index(bucket_index);
+        * pair_index = 0;
+        { pair_index < bucket.size; } $$ {
+            written > 0 ? { _push_character(builder, 44); } : {};
+            * pair = bucket.index(pair_index);
+            _push_string(builder, _stringify_key(pair.index(0)));
+            _push_character(builder, 58);
+            _push_string(builder, _stringify_value(pair.index(1)));
+            written = written + 1;
+            pair_index = pair_index + 1;
+        };
+        bucket_index = bucket_index + 1;
+    };
+    _push_character(builder, 125);
+    return builder;
+};
+
+*** _stringify_key = [*key] => {
+    * result = none;
+    is_none(result) ? { result = type_of(key) == integer ? _stringify_integer(key) : none; } : {};
+    is_none(result) ? { result = key.data | _ : none : _escape_string(key); } : {};
+    is_none(result) ? { result = key.front | _ : none : key.string(); } : {};
+    is_none(result) ? { result = key.value | _ : none : _stringify_boolean(key); } : {};
+    is_none(result) ? { <- error{"stringify: 字典键无法序列化为 JSON 键"}; } : {};
+    * builder = string{};
+    type_of(key) == string ? {
+        _push_string(builder, result);
+    } : {
+        _push_character(builder, 34);
+        _push_string(builder, result);
+        _push_character(builder, 34);
+    };
+    return builder;
+};
+
+*** _new_string_from = [*characters] => {
+    * builder = string{};
+    * index = 0;
+    { index < characters.size; } $$ {
+        builder.push_char(characters.index(index));
+        index = index + 1;
+    };
+    return builder;
+};
+
+# 字符串 JSON 转义辅助 #;
+
+*** _escape_string = [*text] => {
+    * builder = string{};
+    _push_character(builder, 34);
+    * index = 0;
+    { index < text.data.size; } $$ {
+        * character = text.data.index(index);
+        character == 34 ? {
+            _push_character(builder, 92);
+            _push_character(builder, 34);
+        } : {
+            character == 92 ? {
+                _push_character(builder, 92);
+                _push_character(builder, 92);
+            } : {
+                _push_character(builder, character);
+            };
+        };
+        index = index + 1;
+    };
+    _push_character(builder, 34);
+    return builder;
+};
+
+# 简单的 JSON 解析（仅支持数字、字符串、布尔、null、数组、对象） #;
+
+@ parse # 解析 JSON 字符串，返回整数、字符串、布尔、none、列表或字典 #;
+*** parse = [*text] => {
+    _position = 0;
+    *** result = _parse_value(text);
+    return result;
+};
+
+_position = 0;
+
+*** _skip_whitespace = [*text] => {
+    { _position < text.data.size; } $$ {
+        * character = text.data.index(_position);
+        character == 32 ? {
+            _position = _position + 1;
+        } : {
+            character == 10 ? {
+                _position = _position + 1;
+            } : {
+                character == 13 ? {
+                    _position = _position + 1;
+                } : {
+                    character == 9 ? {
+                        _position = _position + 1;
+                    } : {
+                        break;
+                    };
+                };
+            };
+        };
+    };
+};
+
+*** _peek = [*text] => {
+    * result = -1;
+    _position < text.data.size ? { result = text.data.index(_position); } : {};
+    return result;
+};
+
+*** _next = [*text] => {
+    * character = text.data.index(_position);
+    _position = _position + 1;
+    return character;
+};
+
+*** _parse_value = [*text] => {
+    _skip_whitespace(text);
+    * first_character = _peek(text);
+    * result = _parse_number(text);
+    first_character == 110 ? { result = _parse_null(text); } : {};
+    first_character == 116 ? { result = _parse_true(text); } : {};
+    first_character == 102 ? { result = _parse_false(text); } : {};
+    first_character == 34 ? { result = _parse_string(text); } : {};
+    first_character == 91 ? { result = _parse_array(text); } : {};
+    first_character == 123 ? { result = _parse_object(text); } : {};
+    return result;
+};
+
+*** _parse_null = [*text] => {
+    _next(text);
+    _next(text);
+    _next(text);
+    _next(text);
+    return none;
+};
+
+*** _parse_true = [*text] => {
+    _next(text);
+    _next(text);
+    _next(text);
+    _next(text);
+    return true;
+};
+
+*** _parse_false = [*text] => {
+    _next(text);
+    _next(text);
+    _next(text);
+    _next(text);
+    _next(text);
+    return false;
+};
+
+*** _parse_string = [*text] => {
+    _next(text);
+    * builder = string{};
+    { _peek(text) != 34; } $$ {
+        * character = _next(text);
+        character == 92 ? {
+            * next_character = _next(text);
+            next_character == 34 ? {
+                builder.push_char(next_character);
+            } : {
+                next_character == 92 ? {
+                    builder.push_char(next_character);
+                } : {};
+            };
+        } : {
+            builder.push_char(character);
+        };
+    };
+    _next(text);
+    return builder;
+};
+
+*** _parse_number = [*text] => {
+    * negative = 0;
+    _peek(text) == 45 ? {
+        negative = 1;
+        _next(text);
+    } : {};
+    * integer_part = 0;
+    { _peek(text) >= 48 && _peek(text) <= 57; } $$ {
+        integer_part = integer_part * 10 + (_next(text) - 48);
+    };
+    * result = negative ? -integer_part : integer_part;
+    _peek(text) == 46 ? {
+        _next(text);
+        * fraction = 0;
+        * digit_count = 0;
+        { _peek(text) >= 48 && _peek(text) <= 57; } $$ {
+            fraction = fraction * 10 + (_next(text) - 48);
+            digit_count = digit_count + 1;
+        };
+        { digit_count < 4; } $$ {
+            fraction = fraction * 10;
+            digit_count = digit_count + 1;
+        };
+        result = negative ? number{-integer_part, fraction} : number{integer_part, fraction};
+    } : {};
+    return result;
+};
+
+*** _parse_array = [*text] => {
+    _next(text);
+    * result = list{};
+    _skip_whitespace(text);
+    _peek(text) == 93 ? { _next(text); } : {
+        { true; } $$ {
+            result.append(_parse_value(text));
+            _skip_whitespace(text);
+            _peek(text) == 44 ? { _next(text); } : { break; };
+        };
+        _next(text);
+    };
+    return result;
+};
+
+*** _parse_object = [*text] => {
+    _next(text);
+    * pairs = list{};
+    _skip_whitespace(text);
+    _peek(text) == 125 ? { _next(text); } : {
+        { true; } $$ {
+            _skip_whitespace(text);
+            * key = _parse_string(text);
+            _skip_whitespace(text);
+            _peek(text) == 58 ? { _next(text); } : {};
+            * value = _parse_value(text);
+            * pair = list{};
+            pair.append(key);
+            pair.append(value);
+            pairs.append(pair);
+            _skip_whitespace(text);
+            _peek(text) == 44 ? { _next(text); } : { break; };
+        };
+        _next(text);
+    };
+    * result = dictionary{pairs};
+    return result;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "stringify",
+    "parse"
+];

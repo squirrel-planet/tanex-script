@@ -1,0 +1,139 @@
+# Tanex Script ASCII 编解码库 #;
+# 纯 TSuc 实现 #;
+
+# 将字节列表转换为 ASCII 字符串 #;
+
+@ ascii_decode # 字节列表转 ASCII 字符串 #;
+*** ascii_decode = [*data] => {
+    * result = string{};
+    * index = 0;
+    { index < data.size; } $$ {
+        result.push_char(data.index(index));
+        index = index + 1;
+    };
+    return result;
+};
+
+# 将 ASCII 字符串转换为字节列表 #;
+
+@ ascii_encode # ASCII 字符串转字节列表 #;
+*** ascii_encode = [*text] => {
+    * result = list{};
+    * index = 0;
+    { index < text.data.size; } $$ {
+        result.append(text.data.index(index));
+        index = index + 1;
+    };
+    return result;
+};
+
+# 判断字符是否为数字 #;
+
+@ is_digit # 判断字符码是否为数字 #;
+*** is_digit = [*character] => {
+    return character >= 48 && character <= 57;
+};
+
+# 判断字符是否为大写字母 #;
+
+@ is_upper # 判断字符码是否为大写字母 #;
+*** is_upper = [*character] => {
+    return character >= 65 && character <= 90;
+};
+
+# 判断字符是否为小写字母 #;
+
+@ is_lower # 判断字符码是否为小写字母 #;
+*** is_lower = [*character] => {
+    return character >= 97 && character <= 122;
+};
+
+# 判断字符是否为字母 #;
+
+@ is_alpha # 判断字符码是否为字母 #;
+*** is_alpha = [*character] => {
+    return (character >= 65 && character <= 90) || (character >= 97 && character <= 122) ? true : false;
+};
+
+# 判断字符是否为字母或数字 #;
+
+@ is_alphanumeric # 判断字符码是否为字母或数字 #;
+*** is_alphanumeric = [*character] => {
+    return is_digit(character) || is_alpha(character) ? true : false;
+};
+
+# 判断字符是否为空白符（空格/制表符/换行/回车） #;
+
+@ is_space # 判断字符码是否为空白符（空格/制表符/换行/回车） #;
+*** is_space = [*character] => {
+    return character == 32 || character == 9 || character == 10 || character == 13 ? true : false;
+};
+
+# 判断字符是否为可打印 ASCII（32-126） #;
+
+@ is_printable # 判断字符码是否为可打印 ASCII（32-126） #;
+*** is_printable = [*character] => {
+    return character >= 32 && character <= 126;
+};
+
+# 小写转大写 #;
+
+@ to_upper # 小写字母转大写 #;
+*** to_upper = [*character] => {
+    * result = character;
+    is_lower(character) ? { result = character - 32; } : {};
+    return result;
+};
+
+# 大写转小写 #;
+
+@ to_lower # 大写字母转小写 #;
+*** to_lower = [*character] => {
+    * result = character;
+    is_upper(character) ? { result = character + 32; } : {};
+    return result;
+};
+
+# 整个字符串转大写 #;
+
+@ upper # 字符串全部转大写 #;
+*** upper = [*text] => {
+    * result = string{};
+    * index = 0;
+    { index < text.data.size; } $$ {
+        result.push_char(to_upper(text.data.index(index)));
+        index = index + 1;
+    };
+    return result;
+};
+
+# 整个字符串转小写 #;
+
+@ lower # 字符串全部转小写 #;
+*** lower = [*text] => {
+    * result = string{};
+    * index = 0;
+    { index < text.data.size; } $$ {
+        result.push_char(to_lower(text.data.index(index)));
+        index = index + 1;
+    };
+    return result;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "ascii_decode",
+    "ascii_encode",
+    "is_digit",
+    "is_upper",
+    "is_lower",
+    "is_alpha",
+    "is_alphanumeric",
+    "is_space",
+    "is_printable",
+    "to_upper",
+    "to_lower",
+    "upper",
+    "lower"
+];

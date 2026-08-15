@@ -1,0 +1,327 @@
+# Tanex Script 标准库 #;
+# 常用函数、常量、控制流 #;
+
+@ end_line # 换行#;
+*** end_line = "\n";
+
+# 控制流 #;
+
+@ output #
+输出一个可转字符串的值。
+integer_is_unicode 为 false 时，整数按十进制逐位输出（每位 + 48）。
+output(value: type_type, integer_is_unicode: boolean)
+#;
+*** output = [*value, [*integer_is_unicode, boolean, true]] => {
+    integer_is_unicode ? { standard_output << value; } : {
+        type_of(value) == integer ? { _output_integer_digits(value); } : { standard_output << value; };
+    };
+};
+
+# 按十进制逐位输出整数（每一位 + 48） #;
+
+*** _output_integer_digits = [*value] => {
+    value == 0 ? { standard_output << 48; } : {
+        value < 0 ? { standard_output << 45; value = -value; } : {};
+        * digits = list{};
+        { value > 0; } $$ {
+            digits.append(48 + value % 10);
+            value = value \ 10;
+        };
+        * node = reverse_list(digits).head;
+        { !_is_none(node); } $$ {
+            standard_output << node.value;
+            node = node.next;
+        };
+    };
+};
+
+@ for #
+遍历一个可遍历值，每遍历一次执行一次操作。
+for(var: address, for_list: list, for_code: code)
+示例：
+-> "standard";
+for(*str, [
+    "Hello World", "Hello Tanex Script",
+    "Bye World", "Bye Tanex Script"], {
+    output(str);
+});
+#;
+*** for = [[*var, address], [*for_list, list], [*for_code, code]] => {
+    * index = 0;
+    { index < for_list.size ? { /var = for_list[index]; index = index + 1; true; } : { false; }; } $$ for_code;
+};
+
+@ while # 当条件为真时循环执行代码块 #;
+*** while = [
+    [*conditions, [code, function_type, boolean], false],
+    [*while_code, [code, function_type], {}]] => {
+    return conditions $$ while_code;
+};
+
+@ if # 条件为真执行 if_code，否则执行 else_code #;
+*** if = [[*conditions, type_type, 0],
+    [*if_code, [code, function_type]],
+    [*else_code, [code, function_type]]] => {
+    do = conditions ? if_code : else_code;
+    do();
+};
+
+@ cycle # 循环执行代码块 cycle_number 次 #;
+*** cycle = [[*cycle_number, [number, integer]],
+    [*cycle_code, code, function_type]] => {
+    * index = 0;
+    while(
+        { index < cycle_number; },
+        {
+            cycle_code();
+            index = index + 1;
+        }
+    );
+};
+
+@ try # 尝试执行 try_code；出错时执行 err_code，成功时执行 else_code #;
+*** try = [
+    [*try_code, [code, function_type]],
+    [*err_addr, address],
+    [*err_code, [code, function_type]],
+    [*else_code, [code, function_type]]] => {
+    try_code() | err_addr : {
+        err_code();
+    } : {
+        else_code();
+    };
+};
+
+@ function # 返回一个函数。
+示例：
+function([*a, *b, *c], {
+    $ a + b + c;
+});
+#;
+*** function = [[*arg, list, list{}], [*main_code, code, {}]] => {
+    return [arg] => { $ main_code(); };
+};
+
+@ type # 返回一个类型。
+#;
+*** type = [] => {
+    $ type_type{};
+};
+
+# 列表与字符串操作 #;
+
+@ length_of # 返回字符串或列表的长度 #;
+*** length_of = [*value] => {
+    * data = value.data | _ : none : value.data;
+    * result = 0;
+    is_none(data) ? { result = value.size | _ : 0 : value.size; } : { result = data.size; };
+    return result;
+};
+
+@ reverse_string # 反转字符串 #;
+*** reverse_string = [*text] => {
+    * characters = list{};
+    * node = text.data.head;
+    * tail = none;
+    { !_is_none(node); } $$ {
+        characters.head = list_node{node.value, characters.head};
+        characters.size += 1;
+        is_none(tail) ? { tail = characters.head; } : {};
+        node = node.next;
+    };
+    characters.tail = tail;
+    * result = string{};
+    result.data = characters;
+    return result;
+};
+
+@ reverse_list # 反转列表 #;
+*** reverse_list = [*source] => {
+    * result = list{};
+    * node = source.head;
+    * tail = none;
+    { !_is_none(node); } $$ {
+        result.head = list_node{node.value, result.head};
+        result.size += 1;
+        is_none(tail) ? { tail = result.head; } : {};
+        node = node.next;
+    };
+    result.tail = tail;
+    return result;
+};
+
+@ clone_list # 复制一个新列表 #;
+*** clone_list = [*source] => {
+    * result = list{};
+    * node = source.head;
+    { !_is_none(node); } $$ {
+        result.append(node.value);
+        node = node.next;
+    };
+    return result;
+};
+
+@ range # 生成整数序列列表；range(end) 或 range(start, end, step)，支持升序与降序 #;
+*** range = [*start, [*end, integer, -1], [*step, integer, 1]] => {
+    end == -1 ? {
+        end = start;
+        start = 0;
+    } : {};
+    step <= 0 ? { <- error{"range: step 必须为正整数"}; } : {};
+    * result = list{};
+    start < end ? {
+        * index = start;
+        { index < end; } $$ {
+            result.append(index);
+            index = index + step;
+        };
+    } : {
+        * index = start;
+        { index > end; } $$ {
+            result.append(index);
+            index = index - step;
+        };
+    };
+    return result;
+};
+
+@ for_each # 对列表中每个元素调用一次函数 #;
+@ for_each # 对列表中每个元素调用一次函数 #;
+*** for_each = [*function, *list] => {
+    * node = list.head;
+    { !_is_none(node); } $$ {
+        function(node.value);
+        node = node.next;
+    };
+};
+
+@ filter # 返回函数判定为真的元素组成的新列表 #;
+*** filter = [*function, *source] => {
+    * result = list{};
+    * node = source.head;
+    { !_is_none(node); } $$ {
+        function(node.value) ? { result.append(node.value); } : {};
+        node = node.next;
+    };
+    return result;
+};
+
+@ any # 存在任一元素使函数返回真则返回 true #;
+*** any = [*function, *list] => {
+    * node = list.head;
+    * found = false;
+    { !_is_none(node); } $$ {
+        function(node.value) ? { found = true; break; } : {};
+        node = node.next;
+    };
+    return found;
+};
+
+@ all # 所有元素使函数返回真才返回 true #;
+*** all = [*function, *list] => {
+    * node = list.head;
+    * ok = true;
+    { !_is_none(node); } $$ {
+        function(node.value) ? {} : { ok = false; break; };
+        node = node.next;
+    };
+    return ok;
+};
+
+@ find # 返回第一个使函数返回真的元素，无则返回 none #;
+*** find = [*function, *list] => {
+    * node = list.head;
+    * result = none;
+    { !_is_none(node); } $$ {
+        function(node.value) ? { result = node.value; break; } : {};
+        node = node.next;
+    };
+    return result;
+};
+
+@ concatenate # 拼接两个值（字符串或列表） #;
+*** concatenate = [*first, *second] => {
+    return first + second;
+};
+
+# 列表内部操作 #;
+
+*** _node_at = [*list, *index] => {
+    * node = list.head;
+    * position = 0;
+    { position < index; } $$ {
+        node = node.next;
+        position = position + 1;
+    };
+    return node;
+};
+
+@ node_set # 设置列表中指定下标位置的值 #;
+*** node_set = [*list, *index, *value] => {
+    * node = _node_at(list, index);
+    node.value = value;
+};
+
+# 输出辅助 #;
+
+@ print_line # 输出一个可转字符串的值并换行；integer_is_unicode 为 false 时整数按十进制输出 #;
+*** print_line = [*value, [*integer_is_unicode, boolean, true]] => {
+    output(value, integer_is_unicode);
+    standard_output << 10;
+};
+
+# 类型检查辅助 #;
+
+@ is_nan # 判断是否为 NaN #;
+*** is_nan = [*value] => {
+    return value.nan_marker | _ : false : true;
+};
+
+@ is_infinity # 判断是否为无穷大 #;
+*** is_infinity = [*value] => {
+    return value.infinity | _ : false : true;
+};
+
+*** _is_none = [*value] => {
+    return type_of(value) == none_type;
+};
+
+@ is_none # 判断是否为 none #;
+*** is_none = [*value] => {
+    return _is_none(value);
+};
+
+@ is_zero # 判断整数或数字是否为零 #;
+*** is_zero = [*value] => {
+    * front_value = value.front | _ : value : value.front;
+    * back_value = value.back | _ : 0 : value.back;
+    return front_value == 0 && back_value == 0;
+};
+
+# 对外公开的接口 #;
+
+*** public = [
+    "output",
+    "print_line",
+    "for",
+    "while",
+    "if",
+    "cycle",
+    "try",
+    "length_of",
+    "reverse_string",
+    "reverse_list",
+    "clone_list",
+    "range",
+    "for_each",
+    "filter",
+    "any",
+    "all",
+    "find",
+    "concatenate",
+    "node_set",
+    "is_nan",
+    "is_infinity",
+    "is_none",
+    "is_zero"
+];
