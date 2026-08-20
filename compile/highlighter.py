@@ -116,8 +116,10 @@ class tanex_lexer(Lexer):
         line_fragments.append(current_line)
         while len(line_fragments) < document.line_count:
             line_fragments.append([])
+
         def get_line(lineno):
             if 0 <= lineno < len(line_fragments):
                 return line_fragments[lineno]
             return []
+
         return get_line

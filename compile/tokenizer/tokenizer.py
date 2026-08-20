@@ -1,6 +1,8 @@
 import sys
 from compile.preprocessor.source_map import source_map
+
 sys.path.append('..')
+
 from errors import tanex_script_error
 
 # 非值关键字集合，这些关键字不作为值参与表达式
@@ -178,7 +180,8 @@ class tokenizer(object):
     def _read_annotation(self):
         start_line = self._line
         start_col = self._col
-        self._advance()  # 跳过 '@'
+        # 跳过 '@'
+        self._advance()
         value_chars: list[str] = ['@']
         # 跳过空白
         while self._pos < len(self._source) and self._source[self._pos] in ' \t\r\n':

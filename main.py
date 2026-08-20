@@ -13,25 +13,25 @@ def _read_json_args(file_path: str):
     if not file_path.lower().endswith('.json'):
         warning([f'文件 "{file_path}" 不是 .json 后缀，尝试读取'])
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding = 'utf-8') as f:
             data = json.load(f)
     except FileNotFoundError:
         error([f'文件不存在: {file_path}'])
-        raise ValueError(f"File not found: {file_path}")
+        raise ValueError(f'File not found: {file_path}')
     except json.JSONDecodeError as e:
         error([f'JSON 格式错误: {e}'])
-        raise ValueError(f"Invalid JSON: {e}")
+        raise ValueError(f'Invalid JSON: {e}')
     except OSError as e:
         error([f'无法读取文件: {file_path} - {e}'])
         raise
     if isinstance(data, dict):
         error(['期望 JSON 数组 (list)，但得到 JSON 对象 (dict)'])
-        raise TypeError("Expected list, got dict")
+        raise TypeError('Expected list, got dict')
     elif isinstance(data, list):
         return data
     else:
         error([f'期望 JSON 数组 (list)，但得到 {type(data).__name__}'])
-        raise TypeError(f"Expected list, got {type(data).__name__}")
+        raise TypeError(f'Expected list, got {type(data).__name__}')
 
 def _compile_file(tsuc_path: str, tscc_path: str | None = None):
     if not tsuc_path.endswith('.tsuc'):
@@ -95,7 +95,7 @@ def main():
         if args[i] in ('-a', '--args'):
             if i + 1 >= len(args):
                 error(['缺少 --args 参数的文件路径'])
-                raise ValueError("Missing argument for --args")
+                raise ValueError('Missing argument for --args')
             file_path = args[i + 1]
             extra_args = _read_json_args(file_path)
             new_args.extend(extra_args)

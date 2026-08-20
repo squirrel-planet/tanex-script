@@ -3,7 +3,9 @@ import sys
 from dataclasses import dataclass
 from dataclasses import field
 from compile.preprocessor.source_map import source_map
+
 sys.path.append('..')
+
 from errors import *
 
 # 预处理器的输出结果，包含合并后的 token 流和源映射信息

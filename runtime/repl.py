@@ -418,6 +418,7 @@ def _batch_key_bindings() -> KeyBindings:
     @bindings.add('c-d')
     def _on_ctrl_d(event):
         event.current_buffer.validate_and_handle()
+
     return bindings
 
 # 非交互输入时使用的普通批量输入，无高亮但保持脚本可用

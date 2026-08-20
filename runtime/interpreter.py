@@ -486,6 +486,66 @@ class interpreter(object):
         self.address_space.write(cell, value)
         return cell
 
+    # 常量树标记：常量标识符首次绑定时，把其指向对象的所有成员 cell（及递归子对象成员）
+    # 标注为常量并视为已初始化，使常量对象的内容（成员/下标写入）不可再被修改。
+    # type_type 类型的实例（类型对象）豁免：保证 bootstrap 中 `*** string = type_type{}` 后
+    # 继续添加成员（如 string.index = ...）不受影响；Python 层 type_object 同样直接返回。
+    def _mark_tree_const(self, value, _seen = None):
+        if isinstance(value, type_object):
+            return
+        if not isinstance(value, instance):
+            return
+        if self._is_type(value):
+            return
+        if _seen is None:
+            _seen = set()
+        oid = id(value)
+        if oid in _seen:
+            return
+        _seen.add(oid)
+        for name, cell in value.members.items():
+            if cell is None:
+                continue
+            cell.is_const = True
+            cell.initialized = True
+            self._mark_tree_const(cell.value, _seen)
+
+    # 判断 env 是否处于函数执行作用域内（用于常量树标记豁免函数内局部常量）
+    def _in_function_scope(self, env):
+        s = env
+        while s is not None:
+            if getattr(s, 'is_function', False):
+                return True
+            s = s.parent
+        return False
+
+    # 深拷贝：`=` 右操作数为标识符时调用，使赋值得到独立副本而非共享引用。
+    # type_object 与基本值（非 instance）直接返回原值；instance 则新建同 type 实例，
+    # 遍历 members 为每个成员分配新 cell 并递归拷贝 cell.value（新 cell 的 is_const 保持默认 False）。
+    # inherit 实例属性保持原引用；_seen 字典按 id 防环。
+    def _deep_copy(self, value, _seen = None):
+        if isinstance(value, type_object):
+            return value
+        if not isinstance(value, instance):
+            return value
+        if _seen is None:
+            _seen = {}
+        oid = id(value)
+        if oid in _seen:
+            return _seen[oid]
+        new_obj = instance(value.type)
+        new_obj.inherit = value.inherit
+        _seen[oid] = new_obj
+        for name, cell in value.members.items():
+            if cell is None:
+                continue
+            if name == 'inherit':
+                new_cell = self.address_space.allocate(cell.value)
+            else:
+                new_cell = self.address_space.allocate(self._deep_copy(cell.value, _seen))
+            new_obj.members[name] = new_cell
+        return new_obj
+
     def _get_member(self, obj, name):
         cell = self._find_member_cell(obj, name)
         if cell is None:
@@ -585,7 +645,7 @@ class interpreter(object):
                 return rs.value
         return self._get_none()
 
-    def execute_code_value(self, cv, take_last=False):
+    def execute_code_value(self, cv, take_last = False):
         fscope = scope(cv.env)
         for i, name in enumerate(cv.params):
             cell = self.address_space.allocate(self._get_none())
@@ -1035,6 +1095,14 @@ class interpreter(object):
         if op == '=':
             cell = self._assign_target(target, env)
             v = self.eval_node(right, env)
+            # `=` 右操作数为标识符时深拷贝其存储内容（引用别名用 `**`，不拷贝）
+            if next(iter(right)) == 'name' and not (next(iter(target)) == 'unary' and target['unary']['operator'] == '**'):
+                v = self._deep_copy(v)
+            # 常量首次绑定时标记其指向对象的成员树；仅在非函数作用域生效，
+            # 避免 bootstrap/用户函数内部 `*** node = ...` 等局部常量声明
+            # 把共享对象（如 list 元素节点）误标为常量。
+            if cell.is_const and not cell.initialized and not self._in_function_scope(env):
+                self._mark_tree_const(v)
             self.address_space.write(cell, v)
             return v
         cell = self._assign_target(target, env)
@@ -1566,4 +1634,3 @@ class interpreter(object):
             return self._call(callable_obj, [receiver_cell] + arg_cells)
         callable_obj = self.eval_node(name_node, env)
         return self._call(callable_obj, arg_cells)
-

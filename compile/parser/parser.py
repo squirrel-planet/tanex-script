@@ -1,5 +1,7 @@
 import sys
+
 sys.path.append('..')
+
 from errors import tanex_script_error
 
 # 优先级常量定义，数值越大优先级越高
@@ -274,7 +276,8 @@ class parser(object):
     # 支持成员级注解：@ boolean.addition # 内容 #; 记录到 key "boolean.addition"
     def _parse_annotation(self) -> None:
         tok = self._advance()
-        raw = tok[0][1:]  # 去掉开头的 '@'
+        # 去掉开头的 '@'
+        raw = tok[0][1:]
         i = 0
         while i < len(raw) and raw[i] in ' \t\r\n':
             i += 1
