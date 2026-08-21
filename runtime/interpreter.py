@@ -3,7 +3,7 @@
 import os
 import sys
 import json
-from errors import warning
+from errors import warning, output_message
 from runtime.environment import address_space
 from runtime.environment import scope
 from runtime.environment import storage_cell
@@ -120,7 +120,7 @@ class interpreter(object):
                 path = cand
                 break
         if path is None:
-            print('未找到 bootstrap.tscc，跳过引导阶段')
+            output_message(['未找到 bootstrap.tscc，跳过引导阶段'])
             return
         data = self._load_json_file(path)
         self.annotations.update(data.get('annotations', {}))
