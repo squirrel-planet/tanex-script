@@ -11,15 +11,21 @@ ROOT = os.path.dirname(HERE)
 # 应用图标：Windows 用 .ico，其他平台退回 png
 ICON = os.path.join(HERE, 'tanex-script.ico')
 LOGO = os.path.join(HERE, 'logo.png')
+APP_ID = 'TanexScript.IDLE'
 _logo_image = None
 
 def apply_icon(window):
-    """给窗口设置应用图标；.ico 失败时退回 png 的 iconphoto。"""
+    """给窗口设置应用图标；.ico 失败时退回 png 的 iconphoto。
+
+    Windows 下同时用 WM_SETICON 补一次 32x32 小图标，标题栏与 Alt+Tab
+    都能拿到合适尺寸。
+    """
     global _logo_image
     if os.name == 'nt':
         try:
             if os.path.isfile(ICON):
                 window.iconbitmap(ICON)
+                _apply_icon_win32(window)
                 return
         except Exception:
             pass
@@ -30,6 +36,44 @@ def apply_icon(window):
             window.iconphoto(True, _logo_image)
     except Exception:
         pass
+
+def _apply_icon_win32(window):
+    """显式发 WM_SETICON，确保大/小图标都挂上（任务栏与 Alt+Tab 读这两个）。"""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        hwnd = int(window.frame(), 0)
+        user32 = ctypes.windll.user32
+        WM_SETICON = 0x0080
+        ICON_SMALL, ICON_BIG = 0, 1
+        LR_LOADFROMFILE = 0x00000010
+        IMAGE_ICON = 1
+        # 任务栏用 32x32，Alt+Tab 用 48x48
+        for size, which in ((32, ICON_SMALL), (48, ICON_BIG)):
+            handle = user32.LoadImageW(0, ICON, IMAGE_ICON, size, size,
+                LR_LOADFROMFILE)
+            if not handle:
+                continue
+            user32.SendMessageW(hwnd, WM_SETICON, which, handle)
+    except Exception:
+        pass
+
+def set_app_user_model_id() -> bool:
+    """声明进程的 AppUserModelID。
+
+    不声明的话 Windows 会把窗口归到 python.exe 组，任务栏显示 Python 的图标
+    而不是我们自己的；声明后任务栏才会读窗口自己的图标。
+    必须在创建任何窗口之前调用。
+    """
+    if os.name != 'nt':
+        return False
+    try:
+        import ctypes
+        result = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            APP_ID)
+        return result == 0
+    except Exception:
+        return False
 
 FONT_NAME = 'Consolas'
 FONT_SIZE = 12

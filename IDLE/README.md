@@ -22,11 +22,25 @@ IDLE/
 └── logo.png           应用图标（其他平台的备用，iconphoto）
 ```
 
+### 图标
+
 Shell 与每个编辑器窗口启动时都会调用 `config.apply_icon()`：
-Windows 下用 `iconbitmap('tanex-script.ico')` 设置标题栏和任务栏图标，
+Windows 下用 `iconbitmap('tanex-script.ico')` 设置标题栏图标，再用
+`WM_SETICON` 补挂 32×32（任务栏）与 48×48（Alt+Tab）两档图标；
 失败或非 Windows 平台则退回 `iconphoto` 用 `logo.png`。
-（`wm iconbitmap` 查询会返回空串，这是 Tk 对文件型图标的正常表现，
-图标实际已生效。）
+
+**任务栏图标**还需要 `config.set_app_user_model_id()`：不显式声明
+AppUserModelID 的话，Windows 会把窗口归入 `python.exe` 组，任务栏显示的是
+Python 的图标而不是我们的。它在 `main()` 里、`IDLEApp` 创建任何窗口之前调用
+（必须早于窗口创建）。
+
+两个坑：
+
+- `wm iconbitmap` 查询会返回空串，这是 Tk 对文件型图标的正常表现，
+  图标其实已生效；要验证请用 `WM_GETICON`（0x7F）读窗口句柄。
+- 拿真正的顶层窗口句柄要用 `root.frame()`，`winfo_id()` 给的是子窗口。
+
+`tanex-script.ico` 内嵌 16/32/48 三档尺寸。
 
 ## 启动
 

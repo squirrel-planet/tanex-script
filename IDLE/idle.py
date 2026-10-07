@@ -16,6 +16,7 @@ from shell import ShellWindow
 
 class IDLEApp:
     def __init__(self, open_paths = None):
+        config.set_app_user_model_id()
         self.editors = []
         self.last_dir = config.ROOT
         self.shell = ShellWindow(self)
@@ -153,6 +154,8 @@ class IDLEApp:
 
 
 def main():
+    # 必须在创建窗口之前声明，否则任务栏会把窗口归到 python.exe 组
+    config.set_app_user_model_id()
     paths = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
     IDLEApp(paths)
 

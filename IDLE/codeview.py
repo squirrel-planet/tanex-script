@@ -77,11 +77,15 @@ class CodeView(tk.Frame):
                 takefocus = False)
 
         self.grid_rowconfigure(0, weight = 1)
-        self.grid_columnconfigure(1, weight = 1)
         column = 0
         if self.gutter is not None:
             self.gutter.grid(row = 0, column = 0, sticky = 'ns')
             column = 1
+        # 多余空间必须给文本列。这里不能写死 column 1：
+        # Shell 没有行号栏，文本列是 column 0，写死会让滚动条那一列被撑宽，
+        # 窗口右侧出现一大块空白。
+        self.grid_columnconfigure(column, weight = 1)
+        self.grid_columnconfigure(column + 1, weight = 0)
         self.text.grid(row = 0, column = column, sticky = 'nsew')
         self.vbar.grid(row = 0, column = column + 1, sticky = 'ns')
         self.hbar.grid(row = 1, column = column, sticky = 'ew')
