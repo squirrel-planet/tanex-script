@@ -13,7 +13,6 @@ from errors import *
 class preprocessor_result(object):
     tokens: list
     source_map: source_map
-    dependencies: list[str]
 
 
 # 预处理器，在 tokenizer 之后运行，按 token 模式匹配 import 语句并合并多文件 token 流
@@ -28,7 +27,6 @@ class preprocessor(object):
         # 输出缓冲区
         self._output_tokens: list = []
         self._source_map = source_map()
-        self._dependencies: list[str] = []
         # 已导入 (路径, 名称) 集合，用于去重
         self._imported_paths: set[tuple[str, str]] = imported_paths if imported_paths is not None else set()
 
@@ -39,7 +37,6 @@ class preprocessor(object):
         return preprocessor_result(
             tokens = self._output_tokens,
             source_map = self._source_map,
-            dependencies = self._dependencies,
         )
 
     # 主合并循环，扫描 token 流，
@@ -77,7 +74,7 @@ class preprocessor(object):
         if path_tok[0] == '[':
             return self._emit_import_raw(i)
         # 仅当操作数是静态字符串字面量（后接 ; 或 = name;，无运算符参与）
-        # 时保留预编译依赖逻辑；否则为表达式路径，动态化
+        # 时保留预编译解析；否则为表达式路径，动态化
         is_static_string = (path_tok[0].startswith('"')
             and path_tok[0].endswith('"')
             and i + 2 < len(self._tokens)
@@ -103,7 +100,7 @@ class preprocessor(object):
         if path_tok[0] == '[':
             return self._emit_import_raw(i)
         # 仅当操作数是静态字符串字面量（后接 ;，无运算符参与）时保留预编译
-        # 依赖逻辑（输出 resolved_path）；= name 写法与表达式路径动态化
+        # 解析（输出 resolved_path）；= name 写法与表达式路径动态化
         is_static_string = (path_tok[0].startswith('"')
             and path_tok[0].endswith('"')
             and i + 2 < len(self._tokens)
@@ -157,7 +154,7 @@ class preprocessor(object):
         return i
 
     # 解析单条静态 import 语句（路径为字符串字面量）：解析路径并按需编译，
-    # 保留 import 语句本身；仅此场景保留预编译依赖逻辑
+    # 保留 import 语句本身
     def _try_static_import(self, i: int, tok: tuple) -> int:
         path_tok = self._tokens[i + 1]
         # 检查是否有 = name 改名语法
@@ -206,7 +203,7 @@ class preprocessor(object):
         return i + 3
 
     # 解析单条静态 -> 语句（路径为字符串字面量）：解析路径并按需编译，
-    # 保留 -> 语句本身（输出 resolved_path）；仅此场景保留预编译依赖逻辑
+    # 保留 -> 语句本身（输出 resolved_path）
     def _try_static_include(self, i: int, tok: tuple) -> int:
         path_tok = self._tokens[i + 1]
         semi_tok = self._tokens[i + 2]
@@ -219,7 +216,7 @@ class preprocessor(object):
         return i + 3
 
 
-    # 解析并输出一条 import 语句：解析路径、编译并按需添加依赖，
+    # 解析并输出一条 import 语句：解析路径、编译并输出，
     # 未改名时用默认名，改名时用给定名称；star_tok 非空时保留 * 前缀
     # （传地址引用绑定，供 parser 识别）
     def _emit_single_import(self, keyword_tok: tuple[str, int, int, str],
@@ -261,7 +258,6 @@ class preprocessor(object):
             return
         self._imported_paths.add(import_key)
         # 输出: import "resolved_path" = 名称 ;
-        # 导入不再写入 dependencies：运行时按命名空间加载，内容仅通过库句柄访问
         # 运行时对字符串字面量做转义解码，路径中的反斜杠必须写成 \\ 才能还原
         resolved_val = '"' + resolved_path.replace('\\', '\\\\') + '"'
         self._output_tokens.append(
@@ -275,7 +271,7 @@ class preprocessor(object):
         self._output_tokens.append(name_token)
         self._output_tokens.append(semi_tok)
 
-    # 解析并输出一条 -> 语句：解析路径、编译并按需添加依赖，
+    # 解析并输出一条 -> 语句：解析路径、编译并输出，
     # 输出保留 -> 前缀（不打包为 library，运行时展开顶层声明到当前作用域）
     def _emit_single_include(self, keyword_tok: tuple[str, int, int, str],
         path_tok: tuple[str, int, int, str],

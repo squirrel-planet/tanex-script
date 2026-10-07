@@ -1,0 +1,3 @@
+-> "standard";
+standard.output << "hello";
+standard.output << "world";

@@ -16,7 +16,6 @@ def compile_source(source: str, file_path: str, exit_on_error: bool = True,
         merged_tokens = pp_result.tokens
         p = parser(merged_tokens)
         ast = p.parse()
-        ast['dependencies'] = list(pp_result.dependencies)
         return _serialize_ast(ast, output_mode)
     except Exception as e:
         if exit_on_error:

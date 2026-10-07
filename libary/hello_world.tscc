@@ -1,33 +1,32 @@
 {
-  "Tanex Script": [
-    {
-      "binary": {
-        "operator": "<<",
-        "left": {
-          "name": {
-            "value": "standard_output",
-            "pos": [
-              1,
-              1
-            ]
-          }
-        },
-        "right": {
-          "string": {
-            "value": "\"Hello World!\"",
-            "pos": [
-              1,
-              20
-            ]
-          }
-        },
-        "pos": [
-          1,
-          17
-        ]
-      }
-    }
-  ],
-  "annotations": {},
-  "dependencies": []
+    "Tanex Script": [
+        {
+            "binary": {
+                "operator": "<<",
+                "left": {
+                    "name": {
+                        "value": "standard_output",
+                        "pos": [
+                            1,
+                            1
+                        ]
+                    }
+                },
+                "right": {
+                    "string": {
+                        "value": "\"Hello World!\"",
+                        "pos": [
+                            1,
+                            20
+                        ]
+                    }
+                },
+                "pos": [
+                    1,
+                    17
+                ]
+            }
+        }
+    ],
+    "annotations": {}
 }

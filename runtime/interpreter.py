@@ -58,9 +58,7 @@ class interpreter(object):
         self._bootstrap_names = set()
         self._outside_bootstrap = False
         self._io_type: instance | None = None
-        self._loaded_dependencies = set()
         self._loaded_libs: dict[str, instance] = {}
-        self._dep_declarations: dict[str, set[str]] = {}
         # 库注解空间：{导入名: {目标: 注解内容}}，import 时单独存放，不污染全局
         self.lib_annotations: dict[str, dict[str, str]] = {}
         # 按库路径暂存注解表，供 eval_import 绑定到导入名
@@ -290,47 +288,17 @@ class interpreter(object):
         if path.endswith('.tscl'):
             self._outside_bootstrap = False
             for _, content in self._iter_tscl_blocks(path):
-                self._load_dependency_data(
-                    self._parse_json_or_raise(content, path), path)
+                data = self._parse_json_or_raise(content, path)
+                self.annotations.update(data.get('annotations', {}))
+                self._run_in_file(data['Tanex Script'], path)
             self._outside_bootstrap = True
             return None, False
         data = self._load_json_file(path)
         self._outside_bootstrap = False
-        for dep in data.get('dependencies', []):
-            self._load_dependency(dep)
         self._outside_bootstrap = True
         self.annotations.update(data.get('annotations', {}))
         return self._run_in_file(
             data['Tanex Script'], self._resolve_source_path(path))
-
-    # 加载单个依赖（库文件），以受信身份执行
-    def _load_dependency(self, dep):
-        dep_key = os.path.abspath(dep)
-        if dep_key in self._loaded_dependencies:
-            return
-        self._loaded_dependencies.add(dep_key)
-        before = set(self.global_scope.names.keys())
-        if dep.endswith('.tscl'):
-            for _, content in self._iter_tscl_blocks(dep):
-                self._load_dependency_data(
-                    self._parse_json_or_raise(content, dep), dep)
-        elif dep.endswith('.tscc'):
-            self._load_dependency_data(self._load_json_file(dep), dep)
-        else:
-            raise runtime_error('不支持的依赖类型: ' + dep)
-        after = set(self.global_scope.names.keys())
-        self._dep_declarations[dep_key] = after - before
-
-    # 执行一个库文件块，先处理其自身依赖
-    def _load_dependency_data(self, data, fallback_file = None):
-        for sub in data.get('dependencies', []):
-            self._load_dependency(sub)
-        self.annotations.update(data.get('annotations', {}))
-        file = data.get('source_file')
-        if file is None and fallback_file:
-            file = (self._resolve_source_path(fallback_file)
-                    if fallback_file.endswith('.tscc') else fallback_file)
-        self._run_in_file(data['Tanex Script'], file)
 
     # 解析 .tscl 库文件，逐块产出（路径, JSON 内容）
     def _iter_tscl_blocks(self, tscl_path):
@@ -351,19 +319,12 @@ class interpreter(object):
         lib_type = self._resolve_global('library')
         if lib_type is None:
             raise runtime_error('library 类型未就绪')
-        if abs_path in self._loaded_dependencies:
-            raise runtime_error('库已加载: ' + path)
         if abs_path.endswith('.tscl'):
             blocks = [(name, self._parse_json_or_raise(content, abs_path))
                 for name, content in self._iter_tscl_blocks(abs_path)]
         else:
             blocks = [(None, self._load_json_file(abs_path))]
         saved_outside = self._outside_bootstrap
-        self._outside_bootstrap = False
-        for _, data in blocks:
-            for dep in data.get('dependencies', []):
-                self._load_dependency(dep)
-        self._outside_bootstrap = saved_outside
         module_scope = scope(parent = self.global_scope)
         module_scope.is_module = True
         self._outside_bootstrap = True
@@ -464,7 +425,6 @@ class interpreter(object):
         visible.add('public')
         # 库实例挂公开名单：None 表示该库没有声明 public，不做可见性过滤
         lib.public_names = visible if declared_any else None
-        self._loaded_dependencies.add(abs_path)
         self._loaded_libs[abs_path] = lib
         return lib
 
@@ -598,8 +558,6 @@ class interpreter(object):
                     '请使用 import <路径表达式> = *name; 显式命名')
         if abs_path in self._loaded_libs:
             lib = self._loaded_libs[abs_path]
-        elif abs_path in self._loaded_dependencies:
-            lib = self._library_from_declarations(abs_path)
         else:
             lib = self._load_library_module(abs_path)
         cell = env.find(module_name)
@@ -653,8 +611,6 @@ class interpreter(object):
         abs_path = self._resolve_import_target(path, line, col)
         if abs_path in self._loaded_libs:
             lib = self._loaded_libs[abs_path]
-        elif abs_path in self._loaded_dependencies:
-            lib = self._library_from_declarations(abs_path)
         else:
             lib = self._load_library_module(abs_path)
         # 展开全部顶层声明；public 是文件级可见性白名单（特殊变量），
@@ -704,18 +660,6 @@ class interpreter(object):
             raise runtime_error(
                 f'文件夹 "{path}" 中没有主内容 (main.tsuc / main.tscc / main.tscl)')
         return resolved
-
-    def _library_from_declarations(self, abs_path):
-        lib_type = self._resolve_global('library')
-        if lib_type is None:
-            raise runtime_error('library 类型未就绪')
-        lib = instance(lib_type)
-        names = self._dep_declarations.get(abs_path, set())
-        for name in names:
-            cell = self.global_scope.find(name)
-            if cell is not None:
-                lib.members[name] = cell
-        return lib
 
     def _builtin_import(self, interp, receiver, args):
         path_obj = receiver
