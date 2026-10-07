@@ -1,0 +1,116 @@
+# Tanex Script 位运算(bit.tsuc)库 #;
+
+@# bit.tsuc，位运算库 #;
+
+***bit_and = [[*a, integer], [*b, integer]] => {
+    a = to_binary(a);
+    b = to_binary(b);
+    r = 0;
+    cnt = 0;
+    { return a or b; } $$ {
+        r = (a % 10 and b % 10) + r * 10;
+        a \= 10;
+        b \= 10;
+        cnt = cnt + 1;
+    };
+    rev = 0;
+    { return cnt != 0; } $$ {
+        rev = rev * 10 + r % 10;
+        r \= 10;
+        cnt = cnt - 1;
+    };
+    return to_decimal(rev);
+};
+
+***bit_or = [[*a, integer], [*b, integer]] => {
+    a = to_binary(a);
+    b = to_binary(b);
+    r = 0;
+    cnt = 0;
+    { return a or b; } $$ {
+        r = ((a % 10) or (b % 10)) + r * 10;
+        a \= 10;
+        b \= 10;
+        cnt = cnt + 1;
+    };
+    rev = 0;
+    { return cnt != 0; } $$ {
+        rev = rev * 10 + r % 10;
+        r \= 10;
+        cnt = cnt - 1;
+    };
+    return to_decimal(rev);
+};
+
+***bit_not = [[*n, integer]] => {
+    return n == 0 ? ([] => { return 1; })() : ([] => {
+        pow = 1;
+        temp = n;
+        { return temp != 0; } $$ {
+            pow = pow * 2;
+            temp \= 2;
+        };
+        return (pow - 1) - n;
+    })();
+};
+
+***to_binary = [[*n, integer]] => {
+    r = 0;
+    pos = 1;
+    { return (n != 0); } $$ {
+        r = (n % 2 == 0 ? 0 : 1) * pos + r;
+        pos = pos * 10;
+        n \= 2;
+        # 整除 #;
+    };
+    return r;
+};
+
+***bit_xor = [[*a, integer], [*b, integer]] => {
+    a = to_binary(a);
+    b = to_binary(b);
+    r = 0;
+    cnt = 0;
+    { return a or b; } $$ {
+        r = ((a % 10) + (b % 10)) % 2 + r * 10;
+        a \= 10;
+        b \= 10;
+        cnt = cnt + 1;
+    };
+    rev = 0;
+    { return cnt != 0; } $$ {
+        rev = rev * 10 + r % 10;
+        r \= 10;
+        cnt = cnt - 1;
+    };
+    return to_decimal(rev);
+};
+
+***bit_left_shift = [[*n, integer], [*sh, integer]] => {
+    pow = 1;
+    { return sh != 0; } $$ {
+        pow = pow * 2;
+        sh = sh - 1;
+    };
+    return n * pow;
+};
+
+***bit_right_shift = [[*n, integer], [*sh, integer]] => {
+    pow = 1;
+    { return sh != 0; } $$ {
+        pow = pow * 2;
+        sh = sh - 1;
+    };
+    return n \ pow;
+};
+
+***to_decimal = [[*n, integer]] => {
+    res = 0;
+    pow = 1;
+    { return n != 0; } $$ {
+        res = res + (n % 10) * pow;
+        pow = pow * 2;
+        n \= 10;
+    };
+    return res;
+};

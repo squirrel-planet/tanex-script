@@ -11,6 +11,7 @@ from compile.main import compile_source
 from errors import output_message
 from errors import print_error_brief
 from runtime.interpreter import interpreter
+from runtime.values import runtime_error
 from runtime.values import type_object
 from runtime.values import instance
 
@@ -67,7 +68,7 @@ def _is_silent_statement(stmt) -> bool:
     if kind in ('assignment', 'import'):
         return True
     if kind == 'unary':
-        return stmt['unary']['operator'] in ('*', '**', '***')
+        return stmt['unary']['operator'] in ('*', '**', '***', '&', '&&', '&&&')
     return False
 
 def _print_result(interp, statements, result):
@@ -90,7 +91,10 @@ def _exec_source(interp, source: str) -> int | None:
     try:
         result, returned = interp.run_statements(statements)
     except Exception as e:
-        print_error_brief(e)
+        if isinstance(e, runtime_error):
+            e.annotate(interp._current_file, interp._current_pos)
+        # 交互环境用精简模式展示：不含文件/行号/列号，但带源码代码定位
+        print_error_brief(e, source)
         return None
     if returned and isinstance(result, int):
         return result
@@ -102,6 +106,9 @@ def repl_entry() -> int | None:
     interp = interpreter()
     interp.init_core()
     interp.load_bootstrap()
+    # REPL 环境下同样填充内置引导常量：program_path/args 保持原逻辑，
+    # path 因无用户程序目录填充为 none
+    interp.inject_args(repl_mode = True)
     if not sys.stdin.isatty():
         return _repl_entry_plain(interp)
     try:
@@ -116,7 +123,7 @@ def repl_entry() -> int | None:
     output_message([
         'Tanex Script 交互式环境',
         '每条语句以 ; 结尾后立即执行',
-        'Ctrl+D 打开菜单，Ctrl+C 清除当前输入',
+        'Ctrl+D 打开菜单(包括 退出、帮助模式)，Ctrl+C 清除当前输入',
     ], False)
     buffer_lines = []
     while True:
@@ -183,7 +190,6 @@ def _ctrl_d_menu(interp, in_help: bool):
             'Ctrl+D 菜单',
             '1. 退出',
             '2. 帮助模式 shell',
-            '3. 退出帮助 shell',
         ], False)
     while True:
         try:
@@ -194,17 +200,19 @@ def _ctrl_d_menu(interp, in_help: bool):
             return 'exit'
         if choice == '2':
             return 'exit_help' if in_help else 'enter_help'
-        if choice == '3' and not in_help:
-            output_message(['当前不在帮助模式'], False)
-            continue
         output_message(['无效选择'], False)
 
 # 帮助模式 shell：输入 + 列出所有已定义类型的 addition 注解与 integer 注解
 # 输入其他名称时查询对应注解，无则输出"无帮助内容"
 def _help_shell(interp) -> str:
     output_message([
-        '帮助模式：输入 + 查看所有类型 addition 注解与 integer 注解；',
-        '输入名称（如 standard.output()）查看对应注解；Ctrl+D 打开菜单退出帮助 shell',
+        '已进入帮助模式',
+        '使用方法:',
+        [
+            '输入运算符（如 +） 查看所有类型 addition 注解与 integer 注解',
+            '输入名称（如 standard.output）查看对应注解'
+        ],
+        'Ctrl+D 打开菜单可选择退出帮助 shell'
     ], False)
     try:
         session = PromptSession(
@@ -294,6 +302,12 @@ def _show_annotation_help(interp, text: str) -> None:
     if ann:
         output_message([f'{name}: {ann}'], False)
         return
+    # 名称是已导入库名时优先显示库本体帮助（文件级注解 + 带注解成员清单），
+    # 而不是把库实例当作普通 library 实例遍历其类型成员
+    lib_table = interp.lib_annotations.get(name)
+    if lib_table is not None:
+        _show_library_help(name, lib_table)
+        return
     cell = interp.global_scope.names.get(name)
     if cell is not None and cell.value is not None:
         help_text = _help_value_text(interp, cell.value)
@@ -301,6 +315,20 @@ def _show_annotation_help(interp, text: str) -> None:
             output_message([help_text], False)
             return
     output_message([f'{text}: 无帮助内容'], False)
+
+# 库本体帮助：先显示文件级注解（@# ... #;），再列出带注解成员供 standard.成员名 深入查询
+def _show_library_help(name: str, table: dict) -> None:
+    lines = []
+    file_ann = table.get('')
+    if file_ann:
+        lines.append(f'{name}: {file_ann}')
+    member_names = sorted(k for k in table if k and '.' not in k)
+    if member_names:
+        lines.append(f'{name} 库带注解成员（输入 {name}.成员名 查看详情）:')
+        lines.append(member_names)
+    if not lines:
+        lines.append(f'{name}: 未定义任何库级注解或成员注解')
+    output_message(lines, False)
 
 # 值帮助文本：类型对象查类型注解；字符串实例按文本查注解；普通实例遍历成员输出实例 help；
 # 无法处理时返回 None（由调用方输出"无帮助内容"）

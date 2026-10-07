@@ -1,6 +1,8 @@
 # Tanex Script 标准库 #;
 # 常用函数、常量、控制流 #;
 
+@#Tanex Script 标准库#;
+
 @ end_line # 换行#;
 *** end_line = "\n";
 
@@ -23,12 +25,12 @@ output(value: type_type, integer_is_unicode: boolean)
     value == 0 ? { standard_output << 48; } : {
         value < 0 ? { standard_output << 45; value = -value; } : {};
         * digits = list{};
-        { value > 0; } $$ {
+        { return  value > 0; } $$ {
             digits.append(48 + value % 10);
             value = value \ 10;
         };
         * node = reverse_list(digits).head;
-        { !_is_none(node); } $$ {
+        { return  !_is_none(node); } $$ {
             standard_output << node.value;
             node = node.next;
         };
@@ -48,18 +50,67 @@ for(*str, [
 #;
 *** for = [[*var, address], [*for_list, list], [*for_code, code]] => {
     * index = 0;
-    { index < for_list.size ? { /var = for_list[index]; index = index + 1; true; } : { false; }; } $$ for_code;
+    {
+        ok = index < for_list.size;
+        ok ? {
+            /var = for_list[index];
+            index = index + 1;
+        } : {};
+        return ok;
+    } $$ for_code;
+};
+
+@ match #
+对单个值做条件匹配：把 value 传给第二参字典中每个键（键为函数/code，条件），
+条件返回真时调用对应值（函数/code，结果）并把其返回值作为 match 返回值；
+全部不命中时调用第三参兜底函数/code；兜底缺省时返回 none。
+注意：遍历顺序与字典哈希桶序一致，多个条件同时为真时命中顺序不确定，条件应互斥。
+match(value, match_dict: dictionary, else: code/function_type)
+示例：
+-> "standard";
+a = 1;
+b = 2;
+match(a, {
+    [*x] => { return x > b; }: { return "a>b"; },
+    [*x] => { return x < b; }: { return "a<b"; }
+}, { return "a==b"; });
+#;
+*** match = [
+    [*value],
+    [*match_dict, dictionary],
+    [*else, [code, function_type], { return none; }]] => {
+    entries = match_dict.entries();
+    i = 0;
+    done = 0;
+    result = none;
+    { return i < entries.size; } $$ {
+        done == 0 ? {
+            entry = entries[i];
+            cond = entry[0];
+            act = entry[1];
+            hit = cond(value);
+            hit == true ? {
+                result = act();
+                done = 1;
+            } : {};
+        } : {};
+        i += 1;
+    };
+    done == 0 ? {
+        result = else();
+    } : {};
+    return result;
 };
 
 @ while # 当条件为真时循环执行代码块 #;
 *** while = [
-    [*conditions, [code, function_type, boolean], false],
+    [*conditions, [code, function_type, boolean]],
     [*while_code, [code, function_type], {}]] => {
     return conditions $$ while_code;
 };
 
 @ if # 条件为真执行 if_code，否则执行 else_code #;
-*** if = [[*conditions, type_type, 0],
+*** if = [[*conditions, [code, function_type, boolean]],
     [*if_code, [code, function_type]],
     [*else_code, [code, function_type]]] => {
     do = conditions ? if_code : else_code;
@@ -68,10 +119,10 @@ for(*str, [
 
 @ cycle # 循环执行代码块 cycle_number 次 #;
 *** cycle = [[*cycle_number, [number, integer]],
-    [*cycle_code, code, function_type]] => {
+    [*cycle_code, [code, function_type]]] => {
     * index = 0;
     while(
-        { index < cycle_number; },
+        { return index < cycle_number; },
         {
             cycle_code();
             index = index + 1;
@@ -99,7 +150,7 @@ function([*a, *b, *c], {
 });
 #;
 *** function = [[*arg, list, list{}], [*main_code, code, {}]] => {
-    return [arg] => { $ main_code(); };
+    return [*arg] => { $ main_code(); };
 };
 
 @ type # 返回一个类型。
@@ -123,7 +174,7 @@ function([*a, *b, *c], {
     * characters = list{};
     * node = text.data.head;
     * tail = none;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         characters.head = list_node{node.value, characters.head};
         characters.size += 1;
         is_none(tail) ? { tail = characters.head; } : {};
@@ -140,7 +191,7 @@ function([*a, *b, *c], {
     * result = list{};
     * node = source.head;
     * tail = none;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         result.head = list_node{node.value, result.head};
         result.size += 1;
         is_none(tail) ? { tail = result.head; } : {};
@@ -154,7 +205,7 @@ function([*a, *b, *c], {
 *** clone_list = [*source] => {
     * result = list{};
     * node = source.head;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         result.append(node.value);
         node = node.next;
     };
@@ -171,13 +222,13 @@ function([*a, *b, *c], {
     * result = list{};
     start < end ? {
         * index = start;
-        { index < end; } $$ {
+        { return  index < end; } $$ {
             result.append(index);
             index = index + step;
         };
     } : {
         * index = start;
-        { index > end; } $$ {
+        { return  index > end; } $$ {
             result.append(index);
             index = index - step;
         };
@@ -189,7 +240,7 @@ function([*a, *b, *c], {
 @ for_each # 对列表中每个元素调用一次函数 #;
 *** for_each = [*function, *list] => {
     * node = list.head;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         function(node.value);
         node = node.next;
     };
@@ -199,7 +250,7 @@ function([*a, *b, *c], {
 *** filter = [*function, *source] => {
     * result = list{};
     * node = source.head;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         function(node.value) ? { result.append(node.value); } : {};
         node = node.next;
     };
@@ -210,7 +261,7 @@ function([*a, *b, *c], {
 *** any = [*function, *list] => {
     * node = list.head;
     * found = false;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         function(node.value) ? { found = true; break; } : {};
         node = node.next;
     };
@@ -221,7 +272,7 @@ function([*a, *b, *c], {
 *** all = [*function, *list] => {
     * node = list.head;
     * ok = true;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         function(node.value) ? {} : { ok = false; break; };
         node = node.next;
     };
@@ -232,7 +283,7 @@ function([*a, *b, *c], {
 *** find = [*function, *list] => {
     * node = list.head;
     * result = none;
-    { !_is_none(node); } $$ {
+    { return  !_is_none(node); } $$ {
         function(node.value) ? { result = node.value; break; } : {};
         node = node.next;
     };
@@ -249,7 +300,7 @@ function([*a, *b, *c], {
 *** _node_at = [*list, *index] => {
     * node = list.head;
     * position = 0;
-    { position < index; } $$ {
+    { return  position < index; } $$ {
         node = node.next;
         position = position + 1;
     };
@@ -323,5 +374,6 @@ function([*a, *b, *c], {
     "is_nan",
     "is_infinity",
     "is_none",
-    "is_zero"
+    "is_zero",
+    "match"
 ];

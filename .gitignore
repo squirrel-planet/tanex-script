@@ -1,4 +1,5 @@
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 .venv/
@@ -6,3 +7,5 @@ venv/
 dist/
 build/
 *.egg-info/
+
+.forge-permissions.json

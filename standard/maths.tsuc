@@ -54,7 +54,7 @@
     * result = true;
     value < 2 ? { result = false; } : {};
     * index = 2;
-    { result && index * index <= value; } $$ {
+    { return  result && index * index <= value; } $$ {
         value % index == 0 ? { result = false; } : {};
         index = index + 1;
     };
@@ -81,7 +81,7 @@
     value > 0 ? {
         * current = value;
         * next_guess = (current + value \ current) \ 2;
-        { next_guess < current; } $$ {
+        { return  next_guess < current; } $$ {
             current = next_guess;
             next_guess = (current + value \ current) \ 2;
         };
@@ -115,7 +115,7 @@
     value > 0 ? {
         * guess = number{value, 0};
         * previous = number{0, 0};
-        { guess != previous; } $$ {
+        { return  guess != previous; } $$ {
             previous = guess;
             guess = (guess + number{value, 0} / guess) / number{2, 0};
         };
@@ -131,7 +131,7 @@
         * guess = value;
         * previous = number{0, 0};
         * index = 0;
-        { index < 10; } $$ {
+        { return  index < 10; } $$ {
             previous = guess;
             guess = (guess + value / guess) / number{2, 0};
             index = index + 1;
@@ -152,7 +152,7 @@
             * first = 0;
             * second = 1;
             * index = 2;
-            { index <= value; } $$ {
+            { return  index <= value; } $$ {
                 * next_value = first + second;
                 first = second;
                 second = next_value;
@@ -191,7 +191,7 @@
         value == 0 ? { result = 0; } : {
             degree == 1 ? { result = value; } : {
                 * guess = value;
-                { true; } $$ {
+                { return  true; } $$ {
                     * new_guess = ((degree - 1) * guess + value \ power_integer(guess, degree - 1)) \ degree;
                     new_guess >= guess ? { break; } : {};
                     guess = new_guess;
@@ -213,7 +213,7 @@
             count = count < total - count ? count : total - count;
             * accumulator = 1;
             * index = 1;
-            { index <= count; } $$ {
+            { return  index <= count; } $$ {
                 accumulator = accumulator * (total - count + index) \ index;
                 index = index + 1;
             };
@@ -230,7 +230,7 @@
         count > total ? { result = 0; } : {
             * accumulator = 1;
             * index = 0;
-            { index < count; } $$ {
+            { return  index < count; } $$ {
                 accumulator = accumulator * (total - index);
                 index = index + 1;
             };

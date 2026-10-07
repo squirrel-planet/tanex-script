@@ -7,7 +7,7 @@
 *** ascii_decode = [*data] => {
     * result = string{};
     * index = 0;
-    { index < data.size; } $$ {
+    { return  index < data.size; } $$ {
         result.push_char(data.index(index));
         index = index + 1;
     };
@@ -20,7 +20,7 @@
 *** ascii_encode = [*text] => {
     * result = list{};
     * index = 0;
-    { index < text.data.size; } $$ {
+    { return  index < text.data.size; } $$ {
         result.append(text.data.index(index));
         index = index + 1;
     };
@@ -100,7 +100,7 @@
 *** upper = [*text] => {
     * result = string{};
     * index = 0;
-    { index < text.data.size; } $$ {
+    { return  index < text.data.size; } $$ {
         result.push_char(to_upper(text.data.index(index)));
         index = index + 1;
     };
@@ -113,7 +113,7 @@
 *** lower = [*text] => {
     * result = string{};
     * index = 0;
-    { index < text.data.size; } $$ {
+    { return  index < text.data.size; } $$ {
         result.push_char(to_lower(text.data.index(index)));
         index = index + 1;
     };

@@ -11,7 +11,7 @@
 *** base_sixty_four_encode = [*data] => {
     * result = string{};
     * index = 0;
-    { index < data.size; } $$ {
+    { return  index < data.size; } $$ {
         * byte_low = data.index(index);
         * byte_middle = index + 1 < data.size ? data.index(index + 1) : -1;
         * byte_high = index + 2 < data.size ? data.index(index + 2) : -1;
@@ -49,7 +49,7 @@
 *** base_sixty_four_decode = [*text] => {
     * result = list{};
     * index = 0;
-    { index < text.data.size; } $$ {
+    { return  index < text.data.size; } $$ {
         * value_a = _base_sixty_four_index(text.data.index(index));
         index = index + 1;
         index < text.data.size ? {} : { break; };
@@ -82,7 +82,7 @@
 *** _base_sixty_four_index = [*character] => {
     * result = -1;
     * index = 0;
-    { index < 64; } $$ {
+    { return  index < 64; } $$ {
         _base_sixty_four_table.data.index(index) == character ? { result = index; break; } : {};
         index = index + 1;
     };

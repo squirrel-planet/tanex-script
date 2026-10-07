@@ -77,7 +77,8 @@ def scan_spans(text: str) -> list[tuple[int, int, str]]:
             i = j
         elif ch.isdigit():
             j = i
-            while j < n and text[j].isdigit():
+            while j < n and (text[j].isdigit() or (text[j] == '_'
+                and j + 1 < n and text[j + 1].isdigit())):
                 j += 1
             spans.append((i, j, 'number'))
             i = j

@@ -6,12 +6,15 @@ sys.path.append('..')
 from errors import tanex_script_error
 
 # 非值关键字集合，这些关键字不作为值参与表达式
+# and 在 parser 层作为二元逻辑与运算符（等价 &&）处理，故列入非值词（不作标识符值、不作 && 别名）
 _non_value_words = frozenset({
-    'return', 'break', 'in', 'type_of', 'import',
+    'return', 'break', 'contiune', 'in', 'type_of', 'import', 'and', 'delete',
 })
 # 关键字别名，分词时直接映射为对应运算符
+# 注意：and 不在别名表——它在 parser 层作为二元逻辑与运算符（等价 &&）处理，
+#      若在词法层映射为 &&，`and 3` 会被前缀一元 && 解析为连续声明，必须避免。
 _keyword_aliases = {
-    'and': '&&', 'or': '||',
+    'or': '||',
     'not': '!', 'is': '==',
 }
 # 分词器，将源码字符串分解为 token 流
@@ -62,7 +65,7 @@ class tokenizer(object):
         if len(val) >= 2:
             if val[0] == '"' and val[-1] == '"' or val[0] == "'" and val[-1] == "'":
                 return True
-        if val.isdigit():
+        if val.replace('_', '').isdigit():
             return True
         if val[0].isalpha() or val[0] == '_' or ord(val[0]) > 127:
             return True
@@ -255,7 +258,10 @@ class tokenizer(object):
                     value_chars.append(self._source[self._pos])
                     self._advance()
             elif ch == "'":
-                return self._make_token(''.join(value_chars), start_line, start_col)
+                raw = ''.join(value_chars)
+                if '_' in raw:
+                    self._validate_number_underscore(raw, start_line, start_col)
+                return self._make_token(raw, start_line, start_col)
         raise self._error('未闭合的数字字面量')
 
     # 读取整数 token
@@ -263,10 +269,45 @@ class tokenizer(object):
         start_line = self._line
         start_col = self._col
         digits: list[str] = []
-        while self._pos < len(self._source) and self._source[self._pos].isdigit():
-            digits.append(self._source[self._pos])
-            self._advance()
-        return self._make_token(''.join(digits), start_line, start_col)
+        while self._pos < len(self._source):
+            ch = self._source[self._pos]
+            if ch.isdigit() or ch == '_':
+                digits.append(ch)
+                self._advance()
+            else:
+                break
+        value = ''.join(digits)
+        if '_' in value:
+            self._validate_number_underscore(value, start_line, start_col)
+        return self._make_token(value, start_line, start_col)
+
+    # 校验数字字面量内容中的下划线数位分隔规则：
+    # 下划线仅作数位分隔（不改变数值），不允许连续下划线、
+    # 不允许数字开头/结尾的下划线、不允许小数点前后的下划线。
+    # text 为原始字面量（含引号）或裸整数文本。
+    def _validate_number_underscore(self, raw: str, line: int, col: int):
+        s = raw[1:-1] if raw.startswith("'") else raw
+        if s.startswith('-'):
+            s = s[1:]
+        if '.' in s:
+            int_part, _, frac_part = s.partition('.')
+        else:
+            int_part, frac_part = s, ''
+        self._check_underscore_segment(int_part, '整数部分', line, col)
+        self._check_underscore_segment(frac_part, '小数部分', line, col)
+
+    # 校验单个数字分段（整数部分或小数部分）中的下划线
+    def _check_underscore_segment(self, seg: str, part_name: str,
+        line: int, col: int):
+        if not seg:
+            return
+        if '__' in seg:
+            raise self._make_error_at(
+                f'数字字面量{part_name}不允许连续下划线', line, col)
+        if seg.startswith('_') or seg.endswith('_'):
+            raise self._make_error_at(
+                f'数字字面量{part_name}的下划线不能位于开头或结尾'
+                '（下划线仅作数位分隔）', line, col)
 
     # 判断字符能否作为标识符开头
     def _is_identifier_start(self, ch: str) -> bool:
@@ -312,12 +353,16 @@ class tokenizer(object):
             return self._multi_char('>>', start_line, start_col)
         if ch == '>' and self._peek(1) == '=':
             return self._multi_char('>=', start_line, start_col)
+        if ch == '=' and self._peek(1) == '=' and self._peek(2) == '=':
+            return self._multi_char('===', start_line, start_col)
         if ch == '=' and self._peek(1) == '=':
             return self._multi_char('==', start_line, start_col)
         if ch == '=' and self._peek(1) == '>':
             return self._multi_char('=>', start_line, start_col)
         if ch == '!' and self._peek(1) == '=':
             return self._multi_char('!=', start_line, start_col)
+        if ch == '&' and self._peek(1) == '&' and self._peek(2) == '&':
+            return self._multi_char('&&&', start_line, start_col)
         if ch == '&' and self._peek(1) == '&':
             return self._multi_char('&&', start_line, start_col)
         if ch == '&' and self._peek(1) == '=':
@@ -326,6 +371,8 @@ class tokenizer(object):
             return self._multi_char('||', start_line, start_col)
         if ch == '|' and self._peek(1) == '=':
             return self._multi_char('|=', start_line, start_col)
+        if ch == '|' and self._peek(1) == '>':
+            return self._multi_char('|>', start_line, start_col)
         if ch == '$' and self._peek(1) == '$':
             return self._multi_char('$$', start_line, start_col)
         if ch == '+' and self._peek(1) == '=':
@@ -351,7 +398,7 @@ class tokenizer(object):
             '~': '~', '!': '!', '+': '+', '-': '-', '*': '*',
             '/': '/', '\\': '\\', '%': '%', '^': '^',
             '<': '<', '>': '>', '=': '=', '|': '|',
-            '?': '?', '.': '.', '$': '$',
+            '?': '?', '.': '.', '$': '$', '&': '&',
         }
         if ch in single_map:
             self._advance()

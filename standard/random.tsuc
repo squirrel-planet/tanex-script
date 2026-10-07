@@ -60,13 +60,13 @@ random_seed = 12345;
 
 @ shuffle # 返回一个新列表，打乱原列表元素顺序 #;
 *** shuffle = [*list] => {
-    * result = clone_list(list);
+    * result = ~clone_list(list);
     * index = result.size - 1;
-    { index > 0; } $$ {
+    { return  index > 0; } $$ {
         * swap_index = random() % (index + 1);
         * temporary = result.index(index);
-        node_set(result, index, result.index(swap_index));
-        node_set(result, swap_index, temporary);
+        ~node_set(result, index, result.index(swap_index));
+        ~node_set(result, swap_index, temporary);
         index = index - 1;
     };
     return result;

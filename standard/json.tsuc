@@ -12,9 +12,9 @@
 
 *** _push_string = [*builder, *text] => {
     * data = text.data | _ : none : text.data;
-    is_none(data) ? { data = text; } : {};
+    ~is_none(data) ? { data = text; } : {};
     * index = 0;
-    { index < data.size; } $$ {
+    { return  index < data.size; } $$ {
         builder.data.append(data.index(index));
         index = index + 1;
     };
@@ -35,7 +35,7 @@
     * number = negative ? -value : value;
     * builder = string{};
     number == 0 ? { builder.push_char(48); } : {
-        { number > 0; } $$ {
+        { return  number > 0; } $$ {
             builder.push_char(48 + number % 10);
             number = number \ 10;
         };
@@ -43,7 +43,7 @@
     negative ? { builder.push_char(45); } : {};
     * result = string{};
     * index = builder.data.size;
-    { index > 0; } $$ {
+    { return  index > 0; } $$ {
         result.push_char(builder.data.index(index - 1));
         index = index - 1;
     };
@@ -53,20 +53,20 @@
 *** _stringify_value = [*value] => {
     * result = none;
 
-    is_none(value) ? { result = _new_string_from([110, 117, 108, 108]); } : {};
+    ~is_none(value) ? { result = _new_string_from([110, 117, 108, 108]); } : {};
 
-    is_none(result) ? { result = type_of(value) == integer ? _stringify_integer(value) : none; } : {};
+    ~is_none(result) ? { result = type_of(value) == integer ? _stringify_integer(value) : none; } : {};
 
-    is_none(result) ? { result = value.data | _ : none : _escape_string(value); } : {};
-    is_none(result) ? { result = value.front | _ : none : value.string(); } : {};
-    is_none(result) ? { result = value.buckets | _ : none : _stringify_dictionary(value); } : {};
-    is_none(result) ? { result = value.size | _ : none : _stringify_list(value); } : {};
-    is_none(result) ? { result = value.value | _ : none : _stringify_boolean(value); } : {};
+    ~is_none(result) ? { result = value.data | _ : none : _escape_string(value); } : {};
+    ~is_none(result) ? { result = value.front | _ : none : value.string(); } : {};
+    ~is_none(result) ? { result = value.buckets | _ : none : _stringify_dictionary(value); } : {};
+    ~is_none(result) ? { result = value.size | _ : none : _stringify_list(value); } : {};
+    ~is_none(result) ? { result = value.value | _ : none : _stringify_boolean(value); } : {};
 
-    is_none(result) ? { result = value.nan_marker | _ : none : <- error{"stringify: nan 不是合法的 JSON 值"}; } : {};
-    is_none(result) ? { result = value.infinity | _ : none : <- error{"stringify: infinite 不是合法的 JSON 值"}; } : {};
+    ~is_none(result) ? { result = value.nan_marker | _ : none : <- error{"stringify: nan 不是合法的 JSON 值"}; } : {};
+    ~is_none(result) ? { result = value.infinity | _ : none : <- error{"stringify: infinite 不是合法的 JSON 值"}; } : {};
 
-    is_none(result) ? { <- error{"stringify: 该值类型无法序列化为 JSON"}; } : {};
+    ~is_none(result) ? { <- error{"stringify: 该值类型无法序列化为 JSON"}; } : {};
     return result;
 };
 
@@ -79,7 +79,7 @@
     * builder = string{};
     _push_character(builder, 91);
     * index = 0;
-    { index < list.size; } $$ {
+    { return  index < list.size; } $$ {
         index > 0 ? { _push_character(builder, 44); } : {};
         sub_value = _stringify_value(list.index(index));
         _push_string(builder, sub_value);
@@ -94,10 +94,10 @@
     _push_character(builder, 123);
     * written = 0;
     * bucket_index = 0;
-    { bucket_index < dict.bucket_count; } $$ {
+    { return  bucket_index < dict.bucket_count; } $$ {
         * bucket = dict.buckets.index(bucket_index);
         * pair_index = 0;
-        { pair_index < bucket.size; } $$ {
+        { return  pair_index < bucket.size; } $$ {
             written > 0 ? { _push_character(builder, 44); } : {};
             * pair = bucket.index(pair_index);
             _push_string(builder, _stringify_key(pair.index(0)));
@@ -114,11 +114,11 @@
 
 *** _stringify_key = [*key] => {
     * result = none;
-    is_none(result) ? { result = type_of(key) == integer ? _stringify_integer(key) : none; } : {};
-    is_none(result) ? { result = key.data | _ : none : _escape_string(key); } : {};
-    is_none(result) ? { result = key.front | _ : none : key.string(); } : {};
-    is_none(result) ? { result = key.value | _ : none : _stringify_boolean(key); } : {};
-    is_none(result) ? { <- error{"stringify: 字典键无法序列化为 JSON 键"}; } : {};
+    ~is_none(result) ? { result = type_of(key) == integer ? _stringify_integer(key) : none; } : {};
+    ~is_none(result) ? { result = key.data | _ : none : _escape_string(key); } : {};
+    ~is_none(result) ? { result = key.front | _ : none : key.string(); } : {};
+    ~is_none(result) ? { result = key.value | _ : none : _stringify_boolean(key); } : {};
+    ~is_none(result) ? { <- error{"stringify: 字典键无法序列化为 JSON 键"}; } : {};
     * builder = string{};
     type_of(key) == string ? {
         _push_string(builder, result);
@@ -133,7 +133,7 @@
 *** _new_string_from = [*characters] => {
     * builder = string{};
     * index = 0;
-    { index < characters.size; } $$ {
+    { return  index < characters.size; } $$ {
         builder.push_char(characters.index(index));
         index = index + 1;
     };
@@ -146,7 +146,7 @@
     * builder = string{};
     _push_character(builder, 34);
     * index = 0;
-    { index < text.data.size; } $$ {
+    { return  index < text.data.size; } $$ {
         * character = text.data.index(index);
         character == 34 ? {
             _push_character(builder, 92);
@@ -177,7 +177,7 @@
 _position = 0;
 
 *** _skip_whitespace = [*text] => {
-    { _position < text.data.size; } $$ {
+    { return  _position < text.data.size; } $$ {
         * character = text.data.index(_position);
         character == 32 ? {
             _position = _position + 1;
@@ -252,7 +252,7 @@ _position = 0;
 *** _parse_string = [*text] => {
     _next(text);
     * builder = string{};
-    { _peek(text) != 34; } $$ {
+    { return  _peek(text) != 34; } $$ {
         * character = _next(text);
         character == 92 ? {
             * next_character = _next(text);
@@ -278,7 +278,7 @@ _position = 0;
         _next(text);
     } : {};
     * integer_part = 0;
-    { _peek(text) >= 48 && _peek(text) <= 57; } $$ {
+    { return  _peek(text) >= 48 && _peek(text) <= 57; } $$ {
         integer_part = integer_part * 10 + (_next(text) - 48);
     };
     * result = negative ? -integer_part : integer_part;
@@ -286,11 +286,11 @@ _position = 0;
         _next(text);
         * fraction = 0;
         * digit_count = 0;
-        { _peek(text) >= 48 && _peek(text) <= 57; } $$ {
+        { return  _peek(text) >= 48 && _peek(text) <= 57; } $$ {
             fraction = fraction * 10 + (_next(text) - 48);
             digit_count = digit_count + 1;
         };
-        { digit_count < 4; } $$ {
+        { return  digit_count < 4; } $$ {
             fraction = fraction * 10;
             digit_count = digit_count + 1;
         };
@@ -304,7 +304,7 @@ _position = 0;
     * result = list{};
     _skip_whitespace(text);
     _peek(text) == 93 ? { _next(text); } : {
-        { true; } $$ {
+        { return  true; } $$ {
             result.append(_parse_value(text));
             _skip_whitespace(text);
             _peek(text) == 44 ? { _next(text); } : { break; };
@@ -319,7 +319,7 @@ _position = 0;
     * pairs = list{};
     _skip_whitespace(text);
     _peek(text) == 125 ? { _next(text); } : {
-        { true; } $$ {
+        { return  true; } $$ {
             _skip_whitespace(text);
             * key = _parse_string(text);
             _skip_whitespace(text);

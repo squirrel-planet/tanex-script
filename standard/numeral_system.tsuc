@@ -23,12 +23,12 @@
     * padding = (4 - binary_length % 4) % 4;
     * value = 0;
     * index = 0;
-    { index < padding; } $$ {
+    { return  index < padding; } $$ {
         binary_string = "0" + binary_string;
         index = index + 1;
     };
     index = 0;
-    { index < binary_string.data.size; } $$ {
+    { return  index < binary_string.data.size; } $$ {
         value = value * 2 + (binary_string.data.index(index) - 48);
         (index + 1) % 4 == 0 ? {
             result.push_char(_hexadecimal_characters.data.index(value));
@@ -47,7 +47,7 @@
 *** hexadecimal_to_binary = [*hexadecimal_string] => {
     * result = string{};
     * index = 0;
-    { index < hexadecimal_string.data.size; } $$ {
+    { return  index < hexadecimal_string.data.size; } $$ {
         * value = _hexadecimal_value(hexadecimal_string.data.index(index));
         result = result + _hexadecimal_binary_map.index(value);
         index = index + 1;
@@ -62,13 +62,13 @@
     * result = string{};
     * padding = (3 - binary_string.data.size % 3) % 3;
     * index = 0;
-    { index < padding; } $$ {
+    { return  index < padding; } $$ {
         binary_string = "0" + binary_string;
         index = index + 1;
     };
     index = 0;
     * value = 0;
-    { index < binary_string.data.size; } $$ {
+    { return  index < binary_string.data.size; } $$ {
         value = value * 2 + (binary_string.data.index(index) - 48);
         (index + 1) % 3 == 0 ? {
             result.push_char(48 + value);
@@ -87,7 +87,7 @@
 *** octal_to_binary = [*octal_string] => {
     * result = string{};
     * index = 0;
-    { index < octal_string.data.size; } $$ {
+    { return  index < octal_string.data.size; } $$ {
         * value = octal_string.data.index(index) - 48;
         result = result + _octal_binary_map.index(value);
         index = index + 1;
@@ -101,7 +101,7 @@
 *** binary_to_integer = [*binary_string] => {
     * result = 0;
     * index = 0;
-    { index < binary_string.data.size; } $$ {
+    { return  index < binary_string.data.size; } $$ {
         result = result * 2 + (binary_string.data.index(index) - 48);
         index = index + 1;
     };
@@ -115,7 +115,7 @@
     * result = "0";
     value > 0 ? {
         * builder = string{};
-        { value > 0; } $$ {
+        { return  value > 0; } $$ {
             builder = _character_string(48 + value % 2) + builder;
             value = value \ 2;
         };
@@ -131,7 +131,7 @@
     * result = "0";
     value > 0 ? {
         * builder = string{};
-        { value > 0; } $$ {
+        { return  value > 0; } $$ {
             builder = _character_string(_hexadecimal_character(value % 16)) + builder;
             value = value \ 16;
         };
@@ -146,7 +146,7 @@
 *** hexadecimal_to_integer = [*hexadecimal_string] => {
     * result = 0;
     * index = 0;
-    { index < hexadecimal_string.data.size; } $$ {
+    { return  index < hexadecimal_string.data.size; } $$ {
         result = result * 16 + _hexadecimal_value(hexadecimal_string.data.index(index));
         index = index + 1;
     };
@@ -159,7 +159,7 @@
 *** octal_to_integer = [*octal_string] => {
     * result = 0;
     * index = 0;
-    { index < octal_string.data.size; } $$ {
+    { return  index < octal_string.data.size; } $$ {
         result = result * 8 + (octal_string.data.index(index) - 48);
         index = index + 1;
     };
@@ -173,7 +173,7 @@
     * result = "0";
     value > 0 ? {
         * builder = string{};
-        { value > 0; } $$ {
+        { return  value > 0; } $$ {
             builder = _character_string(48 + value % 8) + builder;
             value = value \ 8;
         };

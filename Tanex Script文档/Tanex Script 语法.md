@@ -163,7 +163,7 @@ output(?? a); # 输出给 a 的注解内容 #;
       type(my_type, {
         # 定义类型 #;
         self.name = "";
-        *** init = function([], {
+        *** initialize = function([], {
           output("Hello, Welcome to use my type!\n");
         });
       });
@@ -215,6 +215,7 @@ output(?? a); # 输出给 a 的注解内容 #;
 
     + `break`
       + 退出一个循环
+      + **零元运算符**：无操作数、单独构成语句、非一元非二元，AST 为 `{"break":{"pos":[l,c]}}`
       + 例如
 
       ```Tanex Script
@@ -227,15 +228,33 @@ output(?? a); # 输出给 a 的注解内容 #;
       }); # 偶数后退出循环 #;
       ```
 
+    + `contiune`
+      + 立即结束当前循环迭代，进入下一轮条件判断
+      + **零元运算符**：无操作数、单独构成语句、非一元非二元，AST 为 `{"contiune":{"pos":[l,c]}}`
+      + 例如
+
+      ```Tanex Script
+      $$ {
+          $ { index = index + 1; };
+          if(index == 2, {
+            contiune;
+          });
+          output(index);
+      };
+      # 跳过 index 为 2 的迭代输出 #;
+      ```
+
     + `->` (`import`)
-      + 引入/导入
+      + 引入/导入，`import` 与 `->` 完全等价
       + 用于引入 Tanex Script 文件(.tsuc)、已编译文件(.tscc)、文件夹(库)或已编译库(.tscl)
-      + 在预编译阶段解析为 `import` 语句节点，运行时加载
+      + 二者都是**表达式符号**（Pratt 前缀运算符），操作数为**任意表达式**，运行时先求值得到字符串路径再加载
+      + 静态字符串字面量（如 `-> "standard";`）在预编译阶段解析为绝对路径；动态表达式（拼接、变量等）原样保留，运行时求值
       + 引入后只创建一个 `library` 类型的常量标识符，库内容通过该句柄访问（如 `lib.成员`），不会展开到全局作用域
-      + 如 `-> "code.tsuc";`
-      + 列表批量导入：`-> ["a", "b"];`，等价于 `-> "a"; -> "b";`
-      + 列表批量导入并命名：`-> ["a", "b"] = [x, y];`，将 `a` 引入为 `x`，`b` 引入为 `y`
-      + `import` 与 `->` 完全等价，如 `import ["a", "b"] = [x, y];`
+      + 单条引入：`-> "code" + ".tsuc";`、`import "s" + "tandard";`
+      + 命名引入：`-> expr = name;`、`import expr = name;`，`name` 为静态标识符
+      + 列表批量引入：`import [expr1, expr2];`，元素可为任意表达式，运行时求值，默认以路径名为标识符
+      + 列表批量引入并命名：`import [expr1, expr2] = [n1, n2];`，名称数量须与路径数量一致
+      + 路径列表不能为空
 
   + 二元运算符
     + `+`
@@ -302,7 +321,8 @@ output(?? a); # 输出给 a 的注解内容 #;
       + 可以获取值的某成员
     + `in`
       + 存在符
-      + 如果右值的类型有 `*** index` 成员函数，会对右值进行遍历，如果左值存在于右值，返回 `true`，否则返回 `false`
+      + 如果右值的类型有 `*** include` 成员函数，会优先调用 `include`（receiver 为右值，参数为左值），返回结果按真值作为 `in` 判定
+      + 如果右值没有 `*** include`，则回退到遍历：右值类型有 `*** index` 成员函数时，对右值逐项遍历，左值等于任一元素返回 `true`，否则返回 `false`
       + 如果右值不符合条件，报错
     + `=>`
       + 匿名函数
@@ -498,6 +518,9 @@ output(to_number("1") + to_number("3"));
 | `/n` | `{"unary":{"operator":"/","operand":n,"pos":[l,c]}}` | 取地址 |
 | `** n` | `{"unary":{"operator":"**","operand":n,"pos":[l,c]}}` | 声明引用变量 |
 | `*** n` | `{"unary":{"operator":"***","operand":n,"pos":[l,c]}}` | 声明常量 |
+| `& n` | `{"unary":{"operator":"&","operand":n,"pos":[l,c]}}` | 连续声明：`& N` 声明 N 个普通连续空间 |
+| `&& n` | `{"unary":{"operator":"&&","operand":n,"pos":[l,c]}}` | 连续声明：`&& N` 声明 N 个引用连续空间（一元位置） |
+| `&&& n` | `{"unary":{"operator":"&&&","operand":n,"pos":[l,c]}}` | 连续声明：`&&& N` 声明 N 个常量连续空间 |
 | `<- n` | `{"unary":{"operator":"<-","operand":n,"pos":[l,c]}}` | 报错 |
 | `$ n` | `{"unary":{"operator":"$","operand":n,"pos":[l,c]}}` | 返回 |
 | `return n` | `{"unary":{"operator":"return","operand":n,"pos":[l,c]}}` | 返回 |
@@ -540,7 +563,8 @@ output(to_number("1") + to_number("3"));
 | `f()` | `{"function":{"name":f_ast,"arg":[],"pos":[l,c]}}` | 无参函数调用 |
 | `f(n1)` | `{"function":{"name":f_ast,"arg":[n1],"pos":[l,c]}}` | 单参函数调用 |
 | `f(n1,n2...)` | `{"function":{"name":f_ast,"arg":[n1,n2,...],"pos":[l,c]}}` | 多参函数调用 |
-| `break;` | `{"break":{"pos":[l,c]}}` | 退出循环 |
+| `break;` | `{"break":{"pos":[l,c]}}` | 退出循环（零元运算符，无操作数，单独构成语句） |
+| `contiune;` | `{"contiune":{"pos":[l,c]}}` | 立即结束当前循环迭代（零元运算符，无操作数，单独构成语句） |
 | `#...#` | 忽略（不加入AST） | 注释 |
 | `@ 标识符 # 内容 #;` | 记录到 `annotations`，不加入AST；无标识符时记录到顶层 `annotation` | 注解 |
 | `123` | `{"integer":{"value":"123","pos":[l,c]}}` | 整数字面量 |
