@@ -1,0 +1,35 @@
+import "standard";
+
+* items = python_api.demo.ITEMS;
+items[0] == 10 ? { standard.output("SEQ_BEFORE_OK|"); } : { standard.output("SEQ_BEFORE_FAIL|"); };
+python_api.demo.mutate_list();
+items[0] == 99 ? { standard.output("SEQ_EDIT_OK|"); } : { standard.output("SEQ_EDIT_FAIL|"); };
+items.size == 3 ? { standard.output("SEQ_SIZE_OK|"); } : { standard.output("SEQ_SIZE_FAIL|"); };
+items[2] == 30 ? { standard.output("SEQ_APPEND_OK|"); } : { standard.output("SEQ_APPEND_FAIL|"); };
+
+* cfg = python_api.demo.CONFIG;
+cfg["a"] == 1 ? { standard.output("MAP_BEFORE_OK|"); } : { standard.output("MAP_BEFORE_FAIL|"); };
+python_api.demo.mutate_dict();
+cfg["a"] == 7 ? { standard.output("MAP_EDIT_OK|"); } : { standard.output("MAP_EDIT_FAIL|"); };
+cfg["b"] == 2 ? { standard.output("MAP_NEW_OK|"); } : { standard.output("MAP_NEW_FAIL|"); };
+
+python_api.demo.VERSION == "1.0" ? { standard.output("MOD_BEFORE_OK|"); } : { standard.output("MOD_BEFORE_FAIL|"); };
+python_api.demo.bump_version();
+python_api.demo.VERSION == "2.0" ? { standard.output("MOD_EDIT_OK|"); } : { standard.output("MOD_EDIT_FAIL|"); };
+
+* p = python_api.demo.make_point(5, 8);
+p.x == 5 ? { standard.output("OBJ_BEFORE_OK|"); } : { standard.output("OBJ_BEFORE_FAIL|"); };
+python_api.demo.bump_point(p, 4);
+p.x == 9 ? { standard.output("OBJ_EDIT_OK|"); } : { standard.output("OBJ_EDIT_FAIL|"); };
+
+python_api.live.attach();
+python_api.live.marker == 42 ? { standard.output("MOD_NEW_OK|"); } : { standard.output("MOD_NEW_FAIL|"); };
+python_api.live.replace();
+python_api.live.marker == 99 ? { standard.output("MOD_LIVE_OK|"); } : { standard.output("MOD_LIVE_FAIL|"); };
+
+* gp = python_api.demo.make_guarded_point(3);
+gp.locked == 3 ? { standard.output("GUARD_BEFORE_OK|"); } : { standard.output("GUARD_BEFORE_FAIL|"); };
+* setter = [*target] => { target.locked = 9; return 1; };
+setter(gp) | err : { standard.output("ROLLBACK_CAUGHT|"); } : { standard.output("ROLLBACK_MISS|"); };
+gp.locked == 3 ? { standard.output("ROLLBACK_TS_OK|"); } : { standard.output("ROLLBACK_TS_FAIL|"); };
+python_api.demo.locked_value(gp) == 3 ? { standard.output("ROLLBACK_PY_OK|"); } : { standard.output("ROLLBACK_PY_FAIL|"); };

@@ -1,0 +1,27 @@
+import "standard";
+
+* fa = poly_function{
+    [
+        ([[*x, string]] => { standard.output("STR_OK|"); }),
+        ([[*x, integer]] => { standard.output("INT_OK|"); })
+    ]
+};
+
+fa("hi") | err : { standard.output("FA_ERR:"); standard.output(err.what); } : {};
+fa(7) | err : { standard.output("INT_ERR:"); standard.output(err.what); } : {};
+
+* fb = poly_function{
+    [
+        ([[*x, string], [*y, integer]] => { standard.output("PAIR_OK|"); })
+    ]
+};
+fb("a", 9) | err : { standard.output("PAIR_ERR:"); standard.output(err.what); } : {};
+
+* fc = poly_function{
+    [
+        ([[*x, number]] => { standard.output("NUM_OK|"); })
+    ]
+};
+fc(5) | err : { standard.output("NUM_ERR:"); standard.output(err.what); } : {};
+
+fa([]) | err : { standard.output("MISMATCH_OK:"); standard.output(err.what); } : { standard.output("MISMATCH_FAIL"); };

@@ -1,0 +1,26 @@
+import "standard";
+
+* a = python_api.demo.add(1, 2);
+a == 3 ? { standard.output("ADD_OK|"); } : { standard.output("ADD_FAIL|"); };
+
+* g = python_api.demo.greet("ts");
+g == "hello ts" ? { standard.output("GREET_OK|"); } : { standard.output("GREET_FAIL|"); };
+
+python_api.demo.VERSION == "1.0" ? { standard.output("CONST_OK|"); } : { standard.output("CONST_FAIL|"); };
+
+* p = python_api.demo.make_point(2, 5);
+p.x == 2 ? { standard.output("OBJ_X_OK|"); } : { standard.output("OBJ_X_FAIL|"); };
+p.y == 5 ? { standard.output("OBJ_Y_OK|"); } : { standard.output("OBJ_Y_FAIL|"); };
+p.move(1, 1);
+p.x == 3 ? { standard.output("METHOD_OK|"); } : { standard.output("METHOD_FAIL|"); };
+
+python_api.demo.is_point(p) == "POINT_OK|" ? { standard.output("UNWRAP_OK|"); } : { standard.output("UNWRAP_FAIL|"); };
+
+python_api.mathx.double(4) == 8 ? { standard.output("SUBPKG_OK|"); } : { standard.output("SUBPKG_FAIL|"); };
+
+python_api.demo.describe(python_api.mathx.vec.length(3, 4)) == "VAL=5.0" ? { standard.output("NUM_OK|"); } : { standard.output("NUM_FAIL|"); };
+
+python_api.demo.sum_list([1, 2, 3]) == 6 ? { standard.output("LIST_OK|"); } : { standard.output("LIST_FAIL|"); };
+
+* e = python_api.demo.echo(7);
+e == 7 ? { standard.output("ECHO_OK|"); } : { standard.output("ECHO_FAIL|"); };

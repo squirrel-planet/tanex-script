@@ -1,0 +1,17 @@
+import "standard";
+
+*** L = type_type{};
+*** L.initialize = [**self] => { self; };
+*** R = type_type{};
+*** R.initialize = [**self] => { self; };
+*** R.other_addition = [*self, *other] => { standard.output("OTHER_ADD_OK|"); };
+*** R.other_greater = [*self, *other] => { standard.output("OTHER_GREATER_OK|"); };
+
+* l = L{};
+* r = R{};
+l + r;
+l > r;
+
+*** R.addition = [*self, *other] => { standard.output("FORWARD_OK|"); };
+* rb = R{};
+rb + l;

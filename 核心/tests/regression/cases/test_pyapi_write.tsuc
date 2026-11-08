@@ -1,0 +1,18 @@
+import "standard";
+
+* items = python_api.demo.ITEMS;
+items.append(40);
+python_api.demo.list_size() == 3 ? { standard.output("SEQ_PUSH_PY_OK|"); } : { standard.output("SEQ_PUSH_PY_FAIL|"); };
+items.append(50);
+items.size == 4 ? { standard.output("SEQ_PUSH_TS_OK|"); } : { standard.output("SEQ_PUSH_TS_FAIL|"); };
+items.delete_end();
+python_api.demo.list_size() == 3 ? { standard.output("SEQ_POP_PY_OK|"); } : { standard.output("SEQ_POP_PY_FAIL|"); };
+items[2] == 40 ? { standard.output("SEQ_POP_TS_OK|"); } : { standard.output("SEQ_POP_TS_FAIL|"); };
+
+* cfg = python_api.demo.CONFIG;
+cfg["c"] = 5;
+python_api.demo.dict_c() == 5 ? { standard.output("MAP_SET_PY_OK|"); } : { standard.output("MAP_SET_PY_FAIL|"); };
+cfg["c"] == 5 ? { standard.output("MAP_SET_TS_OK|"); } : { standard.output("MAP_SET_TS_FAIL|"); };
+python_api.demo.mutate_dict();
+cfg["a"] == 7 ? { standard.output("MAP_MIX_OK|"); } : { standard.output("MAP_MIX_FAIL|"); };
+cfg["c"] == 5 ? { standard.output("MAP_KEEP_OK|"); } : { standard.output("MAP_KEEP_FAIL|"); };

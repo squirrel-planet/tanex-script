@@ -1,0 +1,17 @@
+import "standard";
+
+* sq = python_api.demo.make_counter(4);
+sq.size == 4 ? { standard.output("GEN_SIZE_OK|"); } : { standard.output("GEN_SIZE_FAIL|"); };
+sq[0] == 0 ? { standard.output("GEN_HEAD_OK|"); } : { standard.output("GEN_HEAD_FAIL|"); };
+sq[3] == 9 ? { standard.output("GEN_TAIL_OK|"); } : { standard.output("GEN_TAIL_FAIL|"); };
+
+* mp = python_api.demo.iter_map([1, 2, 3]);
+mp.size == 3 ? { standard.output("MAPITER_OK|"); } : { standard.output("MAPITER_FAIL|"); };
+mp[0] == 2 ? { standard.output("MAPITER_HEAD_OK|"); } : { standard.output("MAPITER_HEAD_FAIL|"); };
+
+* bs = python_api.demo.raw_bytes();
+bs.size == 2 ? { standard.output("BYTES_OK|"); } : { standard.output("BYTES_FAIL|"); };
+bs[0] == 65 ? { standard.output("BYTES_HEAD_OK|"); } : { standard.output("BYTES_HEAD_FAIL|"); };
+
+python_api.API_VERSION == "1.0" ? { standard.output("ROOT_PKG_OK|"); } : { standard.output("ROOT_PKG_FAIL|"); };
+python_api.about() == "TanexScript python_api bridge" ? { standard.output("ROOT_FN_OK|"); } : { standard.output("ROOT_FN_FAIL|"); };

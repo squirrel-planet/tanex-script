@@ -1,0 +1,16 @@
+import "standard";
+
+* sp = python_api.demo.make_slot_point(4, 7);
+sp.px == 4 ? { standard.output("SLOT_X_OK|"); } : { standard.output("SLOT_X_FAIL|"); };
+sp.py == 7 ? { standard.output("SLOT_Y_OK|"); } : { standard.output("SLOT_Y_FAIL|"); };
+sp.shift(3) == 7 ? { standard.output("SLOT_METHOD_OK|"); } : { standard.output("SLOT_METHOD_FAIL|"); };
+
+* p = python_api.demo.make_point(2, 5);
+p.x = 9;
+python_api.demo.coord_x(p) == 9 ? { standard.output("SETATTR_OK|"); } : { standard.output("SETATTR_FAIL|"); };
+p.x == 9 ? { standard.output("SETATTR_TS_OK|"); } : { standard.output("SETATTR_TS_FAIL|"); };
+
+* cp = python_api.demo.make_clamped_point(5);
+cp.value = 500;
+cp.value == 100 ? { standard.output("NORM_TS_OK|"); } : { standard.output("NORM_TS_FAIL|"); };
+python_api.demo.clamped_value(cp) == 100 ? { standard.output("NORM_PY_OK|"); } : { standard.output("NORM_PY_FAIL|"); };

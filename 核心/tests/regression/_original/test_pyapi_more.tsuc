@@ -1,0 +1,10 @@
+import "standard";
+
+* f = python_api.demo.add;
+f(10, 5) == 15 ? { standard.output("ALIAS_OK|"); } : { standard.output("ALIAS_FAIL|"); };
+
+python_api.demo.add("x", 1) | err : { standard.output("PYERR_OK|"); } : { standard.output("PYERR_FAIL|"); };
+
+python_api.demo.describe([1, 2]) == "VAL=[1, 2]" ? { standard.output("LIST_RT_OK|"); } : { standard.output("LIST_RT_FAIL|"); };
+
+python_api.demo.sum_list([]) == 0 ? { standard.output("EMPTY_OK|"); } : { standard.output("EMPTY_FAIL|"); };
