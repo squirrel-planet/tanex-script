@@ -362,6 +362,6 @@ while({ $ x > `0; }, { do_something(); x = x - `1; });
 ## 下一步
 
 - [教程：函数与模块](functions_modules.md) — 高阶函数、模块组织、public 控制
-- [语言参考：表达式](reference/expressions.md) — 运算符优先级、求值顺序完整规范
-- [语言参考：语句](reference/statements.md) — 声明、赋值、导入、零元、错误处理语句
-- [标准库：standard 控制流辅助](library/standard.md) — `retry`/`times`/`until` 封装
+- [语言参考：表达式](../reference/expressions.md) — 运算符优先级、求值顺序完整规范
+- [语言参考：语句](../reference/statements.md) — 声明、赋值、导入、零元、错误处理语句
+- [标准库：standard 控制流辅助](../library/standard.md) — `retry`/`times`/`until` 封装

@@ -108,7 +108,7 @@ interp.run_source('''
 
 ## 相关链接
 
-- [教程：进阶](../tutorial/advanced.md) — 自定义类型、动态 import
+- [专题指南：类型设计模式](../howto/type_design.md) — 自定义类型、继承与运算符重载
 - [专题指南：互操作](../howto/interop.md) — Python/C 互操作实战
 - [语言参考：运行时内部](../reference/runtime_internals.md) — 解释器内部机制
 - [语言参考：模块系统](../reference/modules.md) — import/-> 语义

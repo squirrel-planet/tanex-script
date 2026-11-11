@@ -38,7 +38,7 @@
 
 ## 相关链接
 
-- [教程：进阶](../tutorial/advanced.md) — 自定义类型、动态 import 入门
+- [专题指南：类型设计模式](type_design.md) — 自定义类型、继承与运算符重载
 - [语言参考：类型系统](../reference/types.md) — 完整类型规范
 - [语言参考：运算符重载](../reference/operator_overloading.md) — 特殊成员详细语义
 - [标准库参考](../library/) — 可复用的工具函数

@@ -433,5 +433,5 @@ import plugin;  # 运行时根据输入加载不同插件
 
 - [教程：深入控制流](controlflow.md) — `if`/`for`/`while`/`cycle`/`$$` 详细语义
 - [教程：函数与模块](functions_modules.md) — 高阶函数、模块组织、public 控制
-- [语言参考：词法](reference/lexical.md) — 完整词法规范
-- [标准库：maths](library/maths.md) — 数学函数完整条目
+- [语言参考：词法](../reference/lexical.md) — 完整词法规范
+- [标准库：maths](../library/maths.md) — 数学函数完整条目

@@ -251,5 +251,5 @@ HasInit{`1};  # 正常
 - [类型系统](types.md) — 特殊成员槽位、真值判定、继承机制
 - [表达式](expressions.md) — 运算符优先级、求值顺序
 - [内置对象参考](../builtins/) — 核心类型完整规范
-- [教程：自定义类型](../tutorial/advanced.md#自定义类型与运算符重载) — 入门示例
+- [专题指南：类型设计模式](../howto/type_design.md) — 自定义类型与运算符重载实战
 - [标准库：bit](../library/bit.md) — 位运算函数(非运算符重载)

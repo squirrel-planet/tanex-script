@@ -116,7 +116,7 @@ json.stringify(`42`);
 
 ## 相关链接
 
-- [教程：标准库使用](../tutorial/standard_library.md) — 实战示例
+- [常见问题：标准库](../faq/stdlib.md) — 模块导入与常用函数实战示例
 - [语言参考：模块系统](../reference/modules.md) — import/->、路径解析、public、注解隔离
 - [内置对象：核心类型](../builtins/) — 标准库构建基础
 - [专题指南：性能优化](../howto/performance.md) — 标准库函数性能特征

@@ -446,7 +446,7 @@ sum(`10000`);  # 可能溢出
 
 ## 下一步
 
-- [语言参考：函数](reference/functions.md) — 完整语法语义规范
-- [语言参考：模块](reference/modules.md) — import/->、路径解析、初始化顺序
-- [标准库：standard 函数式工具](library/standard.md) — `map`/`filter`/`reduce`/`pipe` 等
-- [专题指南：类型设计模式](howto/type_design.md) — 封装、继承、运算符重载实战
+- [语言参考：函数](../reference/functions.md) — 完整语法语义规范
+- [语言参考：模块](../reference/modules.md) — import/->、路径解析、初始化顺序
+- [标准库：standard 函数式工具](../library/standard.md) — `map`/`filter`/`reduce`/`pipe` 等
+- [专题指南：类型设计模式](../howto/type_design.md) — 封装、继承、运算符重载实战

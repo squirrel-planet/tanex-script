@@ -538,4 +538,4 @@ warning{"deprecated api"};    # Warning 实例
 - [语言参考：类型系统](../reference/types.md) — 完整类型规范
 - [语言参考：运算符重载](../reference/operator_overloading.md) — 特殊成员详细语义
 - [标准库：standard](../library/standard.md) — 基于内置类型的封装函数
-- [教程：自定义类型](../tutorial/advanced.md#自定义类型与运算符重载) — 实战示例
+- [专题指南：类型设计模式](../howto/type_design.md) — 自定义类型与运算符重载实战

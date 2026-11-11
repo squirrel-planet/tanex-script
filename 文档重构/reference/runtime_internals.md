@@ -52,7 +52,7 @@ sequenceDiagram
 
 - **地址空间单例**：引导阶段与用户阶段共享同一 `AddressSpace` 实例
 - **全局作用域单例**：引导阶段在全局作用域声明的所有标识符(类型、常量、函数)，用户代码直接可见，**无需 import**
-- **注解表单例**：引导库注解与用户文件注解共存于同一 `AnnotationTable` (库注解隔离见 [模块系统：库注解隔离](../modules.md#7-库注解隔离机制))
+- **注解表单例**：引导库注解与用户文件注解共存于同一 `AnnotationTable` (库注解隔离见 [模块系统：库注解隔离](modules.md#7-库注解隔离机制))
 
 ---
 
@@ -601,4 +601,4 @@ def register_special_member(type_obj, member_name, py_callable):
 - [语言参考：表达式](expressions.md) — 控制流表达式、尝试结构
 - [语言参考：模块](modules.md) — import/-> 用户层面语义
 - [扩展与嵌入](../extending/) — Python API：解释器嵌入、编译器、值模型
-- [教程：进阶](../tutorial/advanced.md) — 自定义类型、动态 import
+- [专题指南：类型设计模式](../howto/type_design.md) — 自定义类型、继承与运算符重载
