@@ -14,9 +14,9 @@ import config
 import lexer
 import menus
 import runner
-from codeview import CodeView
-from runner import Proc
-from window import WindowMixin
+from codeview import code_view
+from runner import proc
+from window import window_mixin
 
 _ansi = re.compile('\\x1b\\[[0-9;?]*[a-zA-Z]')
 
@@ -46,18 +46,18 @@ _nav_keys = frozenset(
 )
 input_marker = '输入 > '
 
-class shell_window(tk.Tk, WindowMixin):
+class shell_window(tk.Tk, window_mixin):
 
     def __init__(self, app):
         super().__init__()
         self.app = app
         config.init_fonts(self)
-        self.title(config.TITLE + ' — Shell')
+        self.title(config.title + ' — Shell')
         self.geometry('980x640')
-        self.configure(background = config.BG)
+        self.configure(background = config.bg)
         config.apply_icon(self)
 
-        self.view = CodeView(
+        self.view = code_view(
             self,
             show_line_numbers = False,
             on_change = self._on_input_change,
@@ -67,9 +67,9 @@ class shell_window(tk.Tk, WindowMixin):
         self.text = self.view.text
 
         self.events = queue.Queue()
-        self.repl = Proc(
+        self.repl = proc(
             runner.repl_command(),
-            cwd = config.ROOT,
+            cwd = config.root,
             events = self.events,
             tag = 'shell'
         )
@@ -307,9 +307,9 @@ class shell_window(tk.Tk, WindowMixin):
         self._expect_input = False
         self._quiet_since = time.time()
         self.repl.kill()
-        self.repl = Proc(
+        self.repl = proc(
             runner.repl_command(),
-            cwd = config.ROOT,
+            cwd = config.root,
             events = self.events,
             tag = 'shell'
         )
@@ -385,7 +385,7 @@ class shell_window(tk.Tk, WindowMixin):
             folder = os.path.dirname(os.path.abspath(path))
             base = os.path.splitext(os.path.basename(path))[0]
         else:
-            folder = config.ROOT
+            folder = config.root
             base = 'untitled'
         temp = os.path.join(folder, f'{base}._idle_{os.getpid()}.tsuc')
         with open(temp, 'w', encoding = 'utf-8') as handle:
@@ -413,9 +413,9 @@ class shell_window(tk.Tk, WindowMixin):
         if not self.steps:
             return
         args = self.steps.pop(0)
-        self.task = Proc(
+        self.task = proc(
             args,
-            cwd = config.ROOT,
+            cwd = config.root,
             events = self.events,
             tag = 'task'
         )

@@ -4,6 +4,7 @@
 #
 # 提供：打开 .md 文档、目录浏览、基础 Markdown 渲染（标题/代码块/行内代码）。
 import os
+import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, font as tkfont
 
@@ -158,6 +159,11 @@ class DocViewer(tk.Frame):
             os.path.join(here, '..', 'Tanex Script文档'),
             os.path.join(here, '..', '..', 'tanex_script', 'doc'),
         ]
+        # frozen 时 __file__ 是虚拟路径，文档实际随安装包放在安装目录下
+        if getattr(sys, 'frozen', False):
+            install_root = os.path.dirname(sys.executable)
+            candidates.insert(0, os.path.join(install_root, 'Tanex Script文档'))
+            candidates.insert(1, os.path.join(install_root, 'tanex_script', 'doc'))
         for c in candidates:
             abs_c = os.path.abspath(c)
             if os.path.isdir(abs_c):

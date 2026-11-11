@@ -1,12 +1,18 @@
 # IDLE 外观与路径配置
 
 import os
+import sys
 import tkinter as tk
 from tkinter import font as tkfont
 
-# IDLE 所在目录与 TanexScript 项目根目录
-here = os.path.dirname(os.path.abspath(__file__))
-root = os.path.dirname(here)
+# IDLE 所在目录与 TanexScript 项目根目录。
+# frozen 时 __file__ 是 PyInstaller 的虚拟路径，真实资源放在安装目录下。
+if getattr(sys, 'frozen', False):
+    root = os.path.dirname(sys.executable)
+    here = os.path.join(root, 'IDLE')
+else:
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
 
 # 应用图标：Windows 用 .ico，其他平台退回 png
 icon = os.path.join(here, 'tanex-script.ico')

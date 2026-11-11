@@ -1,84 +1,92 @@
-# Tanex Script 应用本体（占位）。
-# 这是被安装程序打包、安装到用户机器上的「真正应用」。
-# 当前为最小可运行窗口，仅用于验证打包/安装链路。
-# 把你自己的业务逻辑替换到 main() 里即可，入口与文件名保持不变。
+# Tanex Script 启动器。
+# 打包后同一个 TanexScript.exe 承担两种角色：
+# 无参数时启动 IDLE 图形界面；带参数时作为命令行主程序运行。
+# IDLE/runner.py 在 frozen 环境下会调用同目录的 TanexScript.exe 并传入
+# -s / -c / -r 等参数，所以这里不能再是占位窗口。
 
 import os
 import sys
-import tkinter as tk
-from tkinter import ttk
+import ctypes
 
-app_name = 'Tanex Script'
 
-# 定位 IDLE 同款图标：frozen 时在 _MEIPASS / _internal / exe 同目录；开发态在 assets。
-def _app_icon_path():
-    candidates = []
-    if getattr(sys, 'frozen', False):
-        base = getattr(sys, '_MEIPASS', '')
-        candidates.append(os.path.join(base, 'tanex-script.ico'))
-        candidates.append(os.path.join(base, '_internal', 'tanex-script.ico'))
-        ed = os.path.dirname(sys.executable)
-        candidates.append(os.path.join(ed, 'tanex-script.ico'))
-        candidates.append(os.path.join(ed, '_internal', 'tanex-script.ico'))
-    candidates.append(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'assets', 'tanex-script.ico')
-    )
-    for c in candidates:
-        if c and os.path.exists(c):
-            return c
-    return None
+# 控制台版 exe 才能把 stdout 接到管道供 IDLE 的 Shell 使用；
+# 启动图形界面时把控制台窗口藏起来，避免闪黑框。
+def hide_console():
+    if os.name != 'nt':
+        return
+    try:
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 0)
+    except OSError:
+        return
 
-def _apply_window_icon(root):
-    p = _app_icon_path()
-    if p:
-        try:
-            root.iconbitmap(p)
-        except Exception:
-            pass
+
+# 打包自检：打印冻结环境下的关键路径，供 packager.py 校验资源落点。
+def dump_paths():
+    import config
+    from compile.preprocessor.preprocessor import preprocessor
+    import runtime.interpreter as interpreter_module
+
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding = 'utf-8')
+    interpreter_dir = os.path.dirname(os.path.abspath(interpreter_module.__file__))
+    print('executable:', sys.executable)
+    print('frozen:', getattr(sys, 'frozen', False))
+    print('meipass:', getattr(sys, '_MEIPASS', None))
+    print('config_file:', getattr(config, '__file__', None))
+    print('config_here:', config.here)
+    print('config_root:', config.root)
+    print('stdlib_root:', preprocessor._stdlib_root())
+    print('library_root:', preprocessor._library_root())
+    print('interpreter_dir:', interpreter_dir)
+    print('bootstrap_exists:', os.path.isfile(os.path.join(interpreter_dir, 'bootstrap.tscc')))
+    print('standard_exists:', os.path.isfile(os.path.join(preprocessor._library_root(), 'standard.tscl')))
+
+
+# 打包自检：确认图形界面与解释器的全部模块在冻结环境下都能导入。
+def check_imports():
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding = 'utf-8')
+    import main
+    import idle
+    import config
+    import editor
+    import shell
+    import doc_viewer
+    import runner
+    import lexer
+    import menus
+    import window
+    import codeview
+    from runtime.repl import repl_entry
+    from runtime.main import run_entry
+
+    print('imports_ok: True')
+    print('cli_main:', callable(main.main))
+    print('idle_main:', callable(idle.main))
+    print('repl_entry:', callable(repl_entry))
+    print('run_entry:', callable(run_entry))
+    print('config_root:', config.root)
+
 
 def main():
-    root = tk.Tk()
-    _apply_window_icon(root)
-    root.title(f'{app_name} · 已安装')
-    root.geometry('560x340')
-    root.resizable(False, False)
+    if '--dump-paths' in sys.argv:
+        dump_paths()
+        return
+    if '--check-imports' in sys.argv:
+        check_imports()
+        return
+    if len(sys.argv) > 1:
+        import main as cli
 
-    frm = ttk.Frame(root, padding = 24)
-    frm.pack(fill = tk.BOTH, expand = True)
+        cli.main()
+        return
+    hide_console()
+    import idle
 
-    ttk.Label(frm, text = app_name, font = ('SimHei', 22, 'bold')).pack(pady = (20, 6))
-    ttk.Label(
-        frm,
-        text = 'Tanex Script 已成功安装到本机。',
-        font = ('Segoe UI', 11)
-    ).pack(
-        pady = (0, 4)
-    )
-    ttk.Label(
-        frm,
-        text = '这是占位应用本体，请在此处替换为你真实的程序逻辑。',
-        foreground = '#64748b',
-        wraplength = 420,
-        justify = 'center'
-    ).pack(
-        pady = (0, 18)
-    )
+    idle.main()
 
-    ttk.Separator(frm, orient = tk.HORIZONTAL).pack(fill = tk.X, pady = (0, 14))
-
-    info = ttk.LabelFrame(frm, text = '运行信息', padding = 10)
-    info.pack(fill = tk.X)
-    ttk.Label(info, text = '可执行文件: TanexScript.exe').pack(anchor = 'w')
-    ttk.Label(
-        info,
-        text = '可通过开始菜单或桌面快捷方式启动。',
-        foreground = '#64748b'
-    ).pack(
-        anchor = 'w',
-        pady = (4, 0)
-    )
-
-    root.mainloop()
 
 if __name__ == '__main__':
     main()

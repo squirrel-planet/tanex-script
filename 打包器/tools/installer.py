@@ -72,6 +72,7 @@ reg_uninstall = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\TanexS
 reg_env = 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment'
 exe_name = 'TanexScript.exe'
 uninst_name = 'uninstall.exe'
+app_version = 'Beta-1.2.3'
 
 title_font = 'SimHei'
 
@@ -246,7 +247,7 @@ def register_uninstall(install_dir, uninstall_exe):
         )
         winreg.SetValueEx(key, 'InstallLocation', 0, winreg.REG_SZ, install_dir)
         winreg.SetValueEx(key, 'Publisher', 0, winreg.REG_SZ, publisher)
-        winreg.SetValueEx(key, 'DisplayVersion', 0, winreg.REG_SZ, '1.0.0')
+        winreg.SetValueEx(key, 'DisplayVersion', 0, winreg.REG_SZ, app_version)
         winreg.SetValueEx(key, 'NoModify', 0, winreg.REG_DWORD, 1)
         winreg.SetValueEx(key, 'NoRepair', 0, winreg.REG_DWORD, 1)
     finally:
@@ -415,7 +416,7 @@ class tanex_installer_ui:
         )
         ttk.Label(
             bar,
-            text = '版本 1.0.0 (64-bit)',
+            text = f'版本 {app_version} (64-bit)',
             foreground = '#64748b'
         ).pack(
             side = tk.LEFT,
@@ -567,7 +568,7 @@ class tanex_installer_ui:
         ttk.Separator(bb, orient = tk.HORIZONTAL).pack(fill = tk.X, pady = (0, 10))
         bi = ttk.Frame(bb)
         bi.pack(fill = tk.X)
-        ttk.Button(bi, text = '取消', command = self.on_close, width = 10).pack(side = tk.RIGHT, padx = 8, 0)
+        ttk.Button(bi, text = '取消', command = self.on_close, width = 10).pack(side = tk.RIGHT, padx = 8)
         ttk.Button(bi, text = '下一步', command = self.on_next_to_step2, width = 10).pack(side = tk.RIGHT)
 
     def browse_folder(self):
@@ -677,7 +678,7 @@ class tanex_installer_ui:
     def build_page3(self):
         h = ttk.Frame(self.page3)
         h.pack(fill = tk.X, pady = (0, 12))
-        ttk.Label(h, text = '安装完成', font = title_font, 16, 'bold').pack(fill = tk.X)
+        ttk.Label(h, text = '安装完成', font = (title_font, 16, 'bold')).pack(fill = tk.X)
         ttk.Label(
             h,
             text = f'{app_name} 已成功安装到您的计算机。',
@@ -691,7 +692,7 @@ class tanex_installer_ui:
         ttk.Label(
             c,
             text = '安装成功',
-            font = title_font, 24, 'bold',
+            font = (title_font, 24, 'bold'),
             foreground = 'black'
         ).pack(
             pady = (30, 16)
