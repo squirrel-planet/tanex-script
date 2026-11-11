@@ -10,6 +10,7 @@ from tkinter import messagebox
 import config
 from editor import editor_window
 from shell import shell_window
+from doc_viewer import DocViewer
 
 class idle_app:
 
@@ -59,8 +60,8 @@ class idle_app:
                 initialdir = self.last_dir,
                 filetypes = config.file_types
             )
-            if not path:
-                return None
+        if not path:
+            return None
         path = os.path.abspath(path)
         for window in self.editors:
             if window.path and os.path.abspath(window.path) == path:
@@ -124,6 +125,11 @@ class idle_app:
             index = os.path.join(folder, 'index.md')
             if os.path.isfile(index):
                 self.new_editor(index)
+
+    # 打开文档查看器窗口
+    def open_doc_viewer(self, path = None):
+        top = tk.Toplevel(self.shell)
+        DocViewer(top, initial_file = path)
 
     # -- 退出 --
     def quit_app(self):

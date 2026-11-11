@@ -3,7 +3,6 @@
 import os
 import sys
 import json
-import socket
 import types
 import importlib
 from collections.abc import Iterator
@@ -59,18 +58,33 @@ _other_cmp_slot = {op: 'other_' + method for op, method in _cmp_slot.items()}
 # python_api.foo.return 这类成员名在解析阶段被当成关键字。
 _py_reserved_names = frozenset(
     {
-        'return', 'break', 'contiune', 'in', 'type_of', 'import',
-        'and', 'or', 'not', 'is', 'delete', 'help', 'self',
-        'true', 'false', 'none', 'public'
+        'return',
+        'break',
+        'contiune',
+        'in',
+        'type_of',
+        'import',
+        'and',
+        'or',
+        'not',
+        'is',
+        'delete',
+        'help',
+        'self',
+        'true',
+        'false',
+        'none',
+        'public'
     }
 )
+
 # 写回失败回滚时用来区分「属性原本不存在」与「属性值恰好是 None」
 _py_missing = object()
 
 # 投影时不能展开的 Python 内部对象：generator.gi_frame -> f_globals -> 整个
 # 模块命名空间这类对象图会无限 / 爆炸式展开，曾导致解释器卡死。
 _py_internal_types = tuple(
-    t for t in (
+    (t for t in (
         getattr(types, 'ModuleType', None),
         getattr(types, 'FrameType', None),
         getattr(types, 'CodeType', None),
@@ -78,8 +92,9 @@ _py_internal_types = tuple(
         getattr(types, 'GeneratorType', None),
         getattr(types, 'CoroutineType', None),
         getattr(types, 'AsyncGeneratorType', None)
-    ) if t is not None
+    ) if t is not None)
 )
+
 # 一次转换最多产生的投影节点数 / 迭代器最多物化的元素数（兜底，防卡死）
 _py_max_projection_nodes = 2000
 _py_max_iter_items = 10000
@@ -130,17 +145,21 @@ class interpreter(object):
         self.type_type: type_object | None = None
         self._none_fallback: instance | None = None
         self._core_placeholders = {}
+
         # python_api 桥接：Python 对象 → TanexScript wrapper 的缓存。
         # {id(py_obj): (py_obj, wrapper)}，强引用 py_obj 防止 id 被复用；
         # 保证同一 Python 对象始终映射为同一个 wrapper（身份一致）。
         self._py_obj_cache = {}
+
         # 实时投影刷新时的重入保护：记录正在同步的 wrapper id，
         # 避免 Python 侧循环引用（a.b -> b.a）造成无限递归。
         self._py_sync_active = set()
+
         # 执行容器自身的方法（list.append / dictionary.index_set 等）期间，
         # 必须暂停该容器的读时同步：引导库会先改 head/tail 再改 size，
         # 中途同步会把半完成的结构当成「TS 侧写入」提前吸收，破坏 size。
         self._py_sync_suppressed = {}
+
         # 单次 Python→TanexScript 转换的投影节点计数（防对象图爆炸卡死）
         self._py_projection_count = 0
         self.annotations = {}
@@ -471,9 +490,7 @@ class interpreter(object):
         cell.initialized = True
         self.global_scope.declare(name, cell)
 
-    # ==================================================================
     # python_api 桥接层
-    # ------------------------------------------------------------------
     # 目标：把 核心/python_api/ 下的 .py 文件投影成 TanexScript 可访问的
     # python_api 标识符，并支持 Python 值与 TanexScript 值双向转换。
     # 约定：
@@ -483,8 +500,6 @@ class interpreter(object):
     #     未定义 __all__ 时取 dir() 的公开名 + obj.__dict__ 的公开键。
     #   - Python 可调用对象 → python_function；其余对象 → object 类型投影。
     #   - 投影对象持有 py_obj 引用，ts_to_py 时直接还原原 Python 对象。
-    # ==================================================================
-
     # TanexScript 标识符规则与 tokenizer 完全一致：每个字符都必须是
     # isalpha() / '_' / 非 ASCII（ord > 127），数字一律不允许。
     def _py_valid_identifier(self, name):
@@ -498,12 +513,13 @@ class interpreter(object):
     # 取一个 Python 对象应暴露的成员名（__all__ 优先，否则公开名 + __dict__）
     def _py_member_names(self, obj):
         all_names = getattr(obj, '__all__', None)
-        if isinstance(all_names, (list, tuple)) and all(isinstance(n, str) for n in all_names):
+        if isinstance(all_names, (list, tuple)) and all((isinstance(n, str) for n in all_names)):
             for n in all_names:
                 if not self._py_valid_identifier(n):
                     raise runtime_error('python_api: __all__ 中的名字不是合法标识符: ' + n)
             return list(all_names)
         names = set()
+
         # dir() 已涵盖类属性、方法、继承成员；再跳过「模块 / frame / code /
         # generator」这类内部对象，否则展开 os/sys 或 gi_frame 会派生出
         # 成百上千个成员甚至无限递归。__all__ 分支不做过滤（尊重显式导出）。
@@ -520,6 +536,7 @@ class interpreter(object):
             except Exception:
                 continue
             names.add(n)
+
         # 动态注入的实例属性（某些对象不出现在 dir() 中）
         try:
             d = getattr(obj, '__dict__', None)
@@ -527,10 +544,9 @@ class interpreter(object):
             d = None
         if isinstance(d, dict):
             names.update(
-                k for k in d
-                if isinstance(k, str) and not k.startswith('_')
-                and not isinstance(d[k], _py_internal_types)
+                (k for k in d if isinstance(k, str) and (not k.startswith('_')) and (not isinstance(d[k], _py_internal_types)))
             )
+
         # __slots__ 类没有 __dict__，显式沿继承链收集槽名
         try:
             for cls in type(obj).__mro__:
@@ -541,14 +557,13 @@ class interpreter(object):
                     slots = (slots,)
                 try:
                     names.update(
-                        s for s in slots
-                        if isinstance(s, str) and not s.startswith('_')
+                        (s for s in slots if isinstance(s, str) and (not s.startswith('_')))
                     )
                 except TypeError:
                     continue
         except Exception:
             pass
-        return sorted(n for n in names if self._py_valid_identifier(n))
+        return sorted((n for n in names if self._py_valid_identifier(n)))
 
     # 引导库里 `*** object = type_type{}` 定义的类型。
     # bootstrap.tscc 已与 bootstrap.tsuc 同步、包含该声明；这里保留兜底：
@@ -607,9 +622,7 @@ class interpreter(object):
         self._py_mark_live(wrapper, mod, 'named')
         return wrapper
 
-    # ------------------------------------------------------------------
     # 投影「惰性实时读取」
-    # ------------------------------------------------------------------
     # 静态快照的问题：投影生成之后，Python 侧再修改 list / dict / 对象属性 /
     # 模块成员时，TanexScript 侧看到的仍是旧值。这里改成「读时同步」：
     # 投影 wrapper 打 _py_live 标记，每次成员 / 方法 / 下标访问之前，
@@ -619,13 +632,11 @@ class interpreter(object):
     #   mapping  : dict，签名变化时才重建 TS dictionary 的 buckets/size
     # 刷新只覆盖已有 cell 的 value，不替换 cell 对象，因此引用别名、
     # _py_writeback 标记都不会丢失。
-    # ------------------------------------------------------------------
-
     def _py_same(self, a, b):
         if a is b:
             return True
         try:
-            eq = (a == b)
+            eq = a == b
             return isinstance(eq, bool) and eq
         except Exception:
             return False
@@ -646,10 +657,9 @@ class interpreter(object):
     def _py_container_signature(self, raw, kind):
         try:
             if kind == 'sequence':
-                return tuple(self._py_scalar_signature(v) for v in raw)
+                return tuple((self._py_scalar_signature(v) for v in raw))
             return tuple(
-                (self._py_scalar_signature(k), self._py_scalar_signature(v))
-                for k, v in raw
+                ((self._py_scalar_signature(k), self._py_scalar_signature(v)) for k, v in raw)
             )
         except Exception:
             return None
@@ -669,6 +679,7 @@ class interpreter(object):
                 wrapper._py_live_sig = self._py_container_signature(raw, kind)
             except Exception:
                 pass
+
             # 记录「上一次同步后 TS 侧的内容」，用于识别 TS 侧是否发生了写入
             wrapper._py_live_ts_snapshot = self._py_ts_container_values(wrapper, kind)
         return wrapper
@@ -722,12 +733,12 @@ class interpreter(object):
             except Exception:
                 continue
             current.add(name)
+
             # 值未变化时不做转换、也不重写 cell，避免每次访问都产生新 wrapper；
             # 但成员本身若是容器投影，仍需单独同步（TS 侧可能刚写过它）
             if name in prev_values and self._py_same(prev_values[name], attr):
                 projected = obj.members.get(name)
-                if (projected is not None and isinstance(projected.value, instance)
-                        and getattr(projected.value, '_py_live', None) is not None):
+                if projected is not None and isinstance(projected.value, instance) and (getattr(projected.value, '_py_live', None) is not None):
                     self._py_sync_live(projected.value)
                 continue
             try:
@@ -772,10 +783,7 @@ class interpreter(object):
         # 否则按 Python 侧当前状态刷新 TS。两侧同时改时以 TS 侧写入为准。
         ts_now = self._py_ts_container_values(obj, kind)
         snapshot = getattr(obj, '_py_live_ts_snapshot', _py_missing)
-        ts_changed = (
-            ts_now is not None and snapshot is not _py_missing
-            and not self._py_same(ts_now, snapshot)
-        )
+        ts_changed = ts_now is not None and snapshot is not _py_missing and (not self._py_same(ts_now, snapshot))
         if ts_changed:
             self._py_absorb_container(py_obj, ts_now, kind)
         try:
@@ -783,8 +791,7 @@ class interpreter(object):
         except Exception:
             return
         sig = self._py_container_signature(raw, kind)
-        if (not ts_changed and sig is not None
-                and getattr(obj, '_py_live_sig', None) == sig):
+        if not ts_changed and sig is not None and (getattr(obj, '_py_live_sig', None) == sig):
             return
         if kind == 'sequence':
             values = []
@@ -801,7 +808,9 @@ class interpreter(object):
                 key_text = k if isinstance(k, str) else str(k)
                 try:
                     self._dictionary_set_key(
-                        fresh, key_text, self._py_to_ts(v)
+                        fresh,
+                        key_text,
+                        self._py_to_ts(v)
                     )
                 except Exception:
                     return
@@ -822,7 +831,7 @@ class interpreter(object):
     # 只挂在赋值目标 cell 上：解释器内部刷新成员不走赋值路径，不会误触发写回。
     def _py_tag_writeback(self, obj, name, cell):
         # 只认「透明句柄 + 持有原 Python 对象」，不依赖类型对象身份比较
-        #（bootstrap 里的类型副本曾导致按身份判断失效）。
+        # （bootstrap 里的类型副本曾导致按身份判断失效）。
         if isinstance(obj, instance) and getattr(obj, '_py_opaque', False):
             # 容器投影（list / dict）的结构成员 head / tail / size / buckets
             # 由引导库方法内部维护，不能当作 Python 对象属性写回；
@@ -844,6 +853,7 @@ class interpreter(object):
             return
         py_obj, name = wb
         had_old = old_value is not _py_missing
+
         # 记录 Python 侧旧值：property setter 可能在抛错前已经改了内部状态
         had_py = False
         py_old = None
@@ -862,6 +872,7 @@ class interpreter(object):
                     self.address_space.write(cell, old_value)
                 except Exception:
                     cell.value = old_value
+
             # 2) 回滚 Python 侧属性（尽力而为，恢复失败不再二次抛错）
             try:
                 if had_py:
@@ -876,6 +887,7 @@ class interpreter(object):
             raise runtime_error(
                 'python_api: 无法写入成员 ' + name + ': ' + str(e) + '（已回滚）'
             )
+
         # 3) 成功但 setter 归一化 / 转换了值时（property / __setattr__），
         #    以 Python 侧读回值为准更新 TS cell，避免两侧语义分叉。
         try:
@@ -893,15 +905,18 @@ class interpreter(object):
     def _py_to_ts(self, obj, _seen = None):
         if _seen is None:
             _seen = {}
+
             # 顶层调用开启一次新的投影预算；递归调用都带着 _seen，
             # 因此计数覆盖整棵对象图，超限时降级为不透明占位而非无限展开。
             self._py_projection_count = 0
+
         # 已经是 TanexScript 侧的值，原样返回
         if isinstance(obj, (python_function, type_object, code_value, builtin_function)):
             return obj
         if isinstance(obj, instance):
             # 已是 TanexScript 值（含 _py_opaque 透明句柄），原样返回
             return obj
+
         # 基础类型（值语义，不入缓存）
         if obj is None:
             return self._get_none()
@@ -913,6 +928,7 @@ class interpreter(object):
             return self._make_number_from_float(obj)
         if isinstance(obj, str):
             return self._build_string_from_py(obj)
+
         # 容器 / 对象：先查缓存防环、保身份
         key = id(obj)
         if key in _seen:
@@ -921,11 +937,13 @@ class interpreter(object):
         if cached is not None and cached[0] is obj:
             wrapper = cached[1]
             _seen[key] = wrapper
+
             # 同一 Python 对象再次出现（例如方法返回 self）时触发读时同步，
             # 使 Python 侧的状态变更对 TanexScript 可见，同时保持 wrapper 身份不变。
             if isinstance(wrapper, instance) and getattr(wrapper, '_py_opaque', False):
                 self._py_refresh_object(wrapper, obj, _seen)
             return wrapper
+
         # 预算兜底：对象图异常庞大时不再展开成员，只给一个透明句柄
         self._py_projection_count += 1
         if self._py_projection_count > _py_max_projection_nodes:
@@ -933,6 +951,7 @@ class interpreter(object):
             self._py_obj_cache[key] = (obj, wrapper)
             _seen[key] = wrapper
             return wrapper
+
         # 迭代器 / 生成器：TanexScript 没有迭代器概念，直接投影会展开
         # gi_frame / gi_code 内部对象图（卡死）。一次性物化为 TS list，
         # 结果缓存到原对象，避免同一生成器被消耗两次。无限生成器按上限截断。
@@ -968,12 +987,14 @@ class interpreter(object):
             return wrapper
         if isinstance(obj, types.ModuleType):
             return self._py_wrap_module(obj)
+
         # 可调用（函数 / bound method / 类）→ python_function
         if callable(obj):
             wrapper = python_function(obj)
             self._py_obj_cache[key] = (obj, wrapper)
             _seen[key] = wrapper
             return wrapper
+
         # 其余 Python 对象 → 引导库 object 类型投影
         wrapper = self._py_make_object(obj)
         self._py_obj_cache[key] = (obj, wrapper)
@@ -1009,6 +1030,7 @@ class interpreter(object):
                 return [self._ts_to_py(e) for e in self._list_to_py(value)]
             if self._is_current('dictionary', value.type):
                 return self._ts_dict_to_py(value)
+
             # 原生 TanexScript 对象：尽力投影为 dict
             result = {}
             for name, c in value.members.items():
@@ -1066,6 +1088,7 @@ class interpreter(object):
 
         named = [(e, entry_name(e)) for e in entries]
         named = [(e, n) for e, n in named if n is not None]
+
         # 大小写折叠冲突（Windows 大小写不敏感）
         seen_lower = {}
         for _, name in named:
@@ -1077,9 +1100,9 @@ class interpreter(object):
             seen_lower[low] = name
             if not self._py_valid_identifier(name):
                 raise runtime_error(
-                    'python_api: 文件名不是合法标识符: ' + name +
-                    '（不能含数字、-、.、空格等）'
+                    'python_api: 文件名不是合法标识符: ' + name + '（不能含数字、-、.、空格等）'
                 )
+
         # 只登记名字，不在这里 import：某个模块自身导入失败不会拖垮整个启动，
         # 错误会延迟到首次访问该成员时才抛（可被 TanexScript try/catch 捕获）。
         # 文件名合法性校验仍在启动阶段完成，非法名依旧立即中止。
@@ -1091,6 +1114,7 @@ class interpreter(object):
                 self._set_own_member(container, name, sub)
             else:
                 self._set_own_member(container, name, python_lazy_module(rel + name))
+
         # 包自身 __init__.py 的公开内容同样延迟到首次访问时合并
         if os.path.isfile(os.path.join(dir_path, '__init__.py')):
             container._py_lazy_init = rel.rstrip('.')
@@ -1100,8 +1124,9 @@ class interpreter(object):
         here = os.path.dirname(os.path.abspath(__file__))
         core_dir = os.path.normpath(os.path.join(here, '..'))
         api_dir = os.path.join(core_dir, 'python_api')
+
         # 保证引导库源里声明的 object 类型在运行时可用
-        #（旧版 bootstrap.tscc 未含该声明时补建，不与已有定义冲突）
+        # （旧版 bootstrap.tscc 未含该声明时补建，不与已有定义冲突）
         self._py_ensure_object_type()
         root = self._py_make_container()
         if os.path.isdir(api_dir):
@@ -1145,6 +1170,7 @@ class interpreter(object):
             cell = self.global_scope.find(name)
             if cell is not None:
                 setattr(self, f'_{name}_type', cell.value)
+
         # python_api 在引导库类型（object / library / list / dictionary ...）就绪后注入，
         # 与 args / path / program_path 一样属于运行前全局标识符填充。
         self.inject_python_api()
@@ -1640,6 +1666,15 @@ class interpreter(object):
         env.declare(name, cell)
         return cell
 
+    # 声明种类校验：标识符一旦用 * / ** / *** 显式声明，
+    # 不得改用另一种声明符重新声明（否则会把变量静默变成引用/常量）。
+    # 想要更换种类必须先 delete 解绑，再重新声明。
+    # 注意：单星 * 兼作"取地址"运算符，对已存在的标识符一律放行，不走此校验。
+    def _check_redeclare(self, cell, name, kind):
+        if cell.decl_kind is not None and cell.decl_kind != kind:
+            raise runtime_error('标识符已声明，需先 delete 再声明: ' + name)
+        cell.decl_kind = kind
+
     def _resolve_assign(self, name, env):
         s = env
         while s is not None:
@@ -1706,6 +1741,7 @@ class interpreter(object):
             # _find_method / _get_member / eval_subscript 都经过这里，
             # 因此成员、方法、下标访问全部能读到最新值。
             self._py_sync_live(obj)
+
             # python_api 惰性加载（1）：包自身 __init__.py 的公开内容，
             # 在该包首次发生成员访问时才导入并合并进来。
             lazy_init = getattr(obj, '_py_lazy_init', None)
@@ -1713,7 +1749,9 @@ class interpreter(object):
                 obj._py_lazy_init = None
                 try:
                     self._py_merge_module(
-                        obj, self._py_import_module(lazy_init), {id(obj): obj}
+                        obj,
+                        self._py_import_module(lazy_init),
+                        {id(obj): obj}
                     )
                 except Exception:
                     obj._py_lazy_init = lazy_init
@@ -1875,6 +1913,7 @@ class interpreter(object):
     def _deep_copy(self, value, _seen = None):
         if isinstance(value, type_object):
             return value
+
         # python_api 的 Python 对象投影是「透明句柄」：值传递时不能克隆，
         # 否则会丢失其持有的原始 Python 对象引用（ts_to_py 无法还原）。
         if getattr(value, '_py_opaque', False):
@@ -2012,16 +2051,16 @@ class interpreter(object):
     # 用计数器支持嵌套调用（同一个容器的方法内部还可能再调用自身的方法）。
     def _call(self, callable_obj, cells, frame_label = None, deep_copy_params = True):
         receiver = cells[0].value if cells else None
-        suppress = (
-            isinstance(receiver, instance)
-            and getattr(receiver, '_py_live', None) in ('sequence', 'mapping')
-        )
+        suppress = isinstance(receiver, instance) and getattr(receiver, '_py_live', None) in ('sequence', 'mapping')
         key = id(receiver) if suppress else None
         if suppress:
             self._py_sync_suppressed[key] = self._py_sync_suppressed.get(key, 0) + 1
         try:
             return self._call_impl(
-                callable_obj, cells, frame_label, deep_copy_params
+                callable_obj,
+                cells,
+                frame_label,
+                deep_copy_params
             )
         finally:
             if suppress:
@@ -2062,8 +2101,7 @@ class interpreter(object):
                 result = callable_obj.py_callable(*py_args)
             except Exception as e:
                 raise runtime_error(
-                    'python_function 调用失败 (' + str(callable_obj.name) + '): ' +
-                    type(e).__name__ + ': ' + str(e)
+                    'python_function 调用失败 (' + str(callable_obj.name) + '): ' + type(e).__name__ + ': ' + str(e)
                 )
             return self._py_to_ts(result)
         if self._is_type(callable_obj) or isinstance(callable_obj, type_object):
@@ -2614,6 +2652,11 @@ class interpreter(object):
             if next(iter(operand)) != 'name':
                 raise runtime_error('声明符的操作数必须是名字')
             cell = self._resolve_or_declare(operand['name']['value'], env)
+
+            # `*` 同时是取地址运算符：对已声明标识符一律放行，不改其声明种类。
+            # 只有首次遇到（未显式声明过）才记为普通变量声明。
+            if cell.decl_kind is None:
+                cell.decl_kind = 'var'
             if cell.is_ref and cell.initialized:
                 # 引用变量：b 即绑定目标空间，取地址返回目标空间地址
                 return cell.value
@@ -2629,6 +2672,7 @@ class interpreter(object):
                 # 引用变量声明：不要求预先存在，新变量绑定到独立空间并标记引用属性
                 name = operand['name']['value']
                 cell = self._resolve_or_declare(name, env)
+                self._check_redeclare(cell, name, 'ref')
                 if not cell.is_ref:
                     cell.is_ref = True
                     if cell.initialized:
@@ -2649,7 +2693,9 @@ class interpreter(object):
             if next(iter(operand)) in ('integer', 'number'):
                 return self._declare_many(operand, env, True)
             if next(iter(operand)) == 'name':
-                cell = self._resolve_or_declare(operand['name']['value'], env)
+                name = operand['name']['value']
+                cell = self._resolve_or_declare(name, env)
+                self._check_redeclare(cell, name, 'const')
                 cell.is_const = True
                 return cell.address
             if next(iter(operand)) == 'member':
@@ -2757,11 +2803,18 @@ class interpreter(object):
             if op == '*':
                 if next(iter(operand)) != 'name':
                     raise runtime_error('声明符的操作数必须是名字')
-                return self._resolve_or_declare(operand['name']['value'], env)
+                cell = self._resolve_or_declare(operand['name']['value'], env)
+
+                # `*` 兼作取地址，重复 `*a` 属合法赋值/取地址，不做种类校验
+                if cell.decl_kind is None:
+                    cell.decl_kind = 'var'
+                return cell
             if op == '**':
                 if next(iter(operand)) == 'name':
                     # 引用变量声明：不要求预先存在，标记引用属性
-                    cell = self._resolve_or_declare(operand['name']['value'], env)
+                    name = operand['name']['value']
+                    cell = self._resolve_or_declare(name, env)
+                    self._check_redeclare(cell, name, 'ref')
                     cell.is_ref = True
                     return cell
                 if next(iter(operand)) == 'member':
@@ -2780,7 +2833,9 @@ class interpreter(object):
                 raise runtime_error('引用声明的操作数必须是名字或成员')
             if op == '***':
                 if next(iter(operand)) == 'name':
-                    cell = self._resolve_or_declare(operand['name']['value'], env)
+                    name = operand['name']['value']
+                    cell = self._resolve_or_declare(name, env)
+                    self._check_redeclare(cell, name, 'const')
                     cell.is_const = True
                     return cell
                 if next(iter(operand)) == 'member':
@@ -2806,6 +2861,7 @@ class interpreter(object):
             name = left['member']['right']['name']['value']
             if not isinstance(obj, (instance, type_object)):
                 raise runtime_error('无法设置成员: ' + name)
+
             # 赋值目标解析前同步：保证写回打在最新的 cell 上，
             # 且 Python 侧刚发生的变更不会被过期的 TS 值覆盖。
             self._py_sync_live(obj)
@@ -2845,6 +2901,7 @@ class interpreter(object):
         if next(iter(target)) == 'unary' and target['unary']['operator'] == '**' and (next(iter(target['unary']['operand'])) == 'name'):
             name = target['unary']['operand']['name']['value']
             cell = self._resolve_or_declare(name, env)
+            self._check_redeclare(cell, name, 'ref')
             cell.is_ref = True
             if next(iter(right)) == 'unary' and right['unary']['operator'] == '/':
                 target_cell = self._deref_cell(right['unary']['operand'], env)
@@ -2886,6 +2943,7 @@ class interpreter(object):
             # 把共享对象（如 list 元素节点）误标为常量。
             if cell.is_const and (not cell.initialized) and (not self._in_function_scope(env)):
                 self._mark_tree_const(v)
+
             # 写回可能失败，先留旧值供回滚
             old_value = cell.value
             self.address_space.write(cell, v)
@@ -3057,8 +3115,6 @@ class interpreter(object):
             return self._eval_input(node, env)
         if op == 'in':
             return self._eval_in(node, env)
-        if op == '===':
-            return self._eval_network(node, env)
         if op in ('&&', '||'):
             return self._eval_logic(node, env)
         left = self.eval_node(node['binary']['left'], env)
@@ -3635,75 +3691,11 @@ class interpreter(object):
                 return cell.address
         return '<addr>'
 
-    # === 网络运算符：把右侧值序列化为 JSON，发送给左侧地址的网关服务，并返回响应
-    # 地址格式为 "主机:端口"（如 "127.0.0.1:12345"）；协议约定每条消息为一行 JSON（换行结尾）。
-    # 网关不可达、请求失败、响应非法时抛出 runtime_error，可被 try 语句捕获。
-    def _eval_network(self, node, env):
-        left = self.eval_node(node['binary']['left'], env)
-        right = self.eval_node(node['binary']['right'], env)
-        if not isinstance(left, instance) or not self._is_current('string', left.type):
-            raise runtime_error('=== 左侧必须是字符串地址')
-        address = self._string_to_py(left)
-        payload = self._value_to_py(right)
-        host, sep, port_text = address.rpartition(':')
-        if not sep or not port_text.isdigit():
-            raise runtime_error('无效的网关地址: ' + address)
-        port = int(port_text)
-        if not host:
-            host = '127.0.0.1'
-        try:
-            sock = socket.create_connection((host, port), timeout = 10)
-        except OSError as e:
-            raise runtime_error('无法连接网关: ' + str(e))
-        try:
-            sock.settimeout(10)
-            data = json.dumps(payload, ensure_ascii = False)
-            sock.sendall(data.encode('utf-8') + b'\n')
-            buffer = b''
-            while b'\n' not in buffer:
-                chunk = sock.recv(4096)
-                if not chunk:
-                    break
-                buffer += chunk
-            line = buffer.split(b'\n', 1)[0]
-            if not line:
-                raise runtime_error('网关无响应')
-            response = json.loads(line.decode('utf-8'))
-        except (OSError, ValueError) as e:
-            raise runtime_error('网关请求失败: ' + str(e))
-        finally:
-            sock.close()
-        return self._py_to_value(response)
-
     # 字符串实例 → Python 字符串
     def _string_to_py(self, obj):
         char_list = self._get_string_value(obj)
         codes = self._list_to_py(char_list)
         return ''.join((chr(c) for c in codes))
-
-    # TSuc 值 → Python 对象（JSON 可序列化），支持整数、字符串、布尔、number、none、list、dictionary
-    def _value_to_py(self, value):
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, int):
-            return value
-        if isinstance(value, str):
-            return value
-        if isinstance(value, instance):
-            if self._is_current('string', value.type):
-                return self._string_to_py(value)
-            if self._is_current('boolean', value.type):
-                cell = value.members.get('value')
-                return bool(cell.value) if cell is not None else None
-            if self._is_current('number', value.type):
-                return self._number_to_py(value)
-            if self._is_current('none_type', value.type):
-                return None
-            if self._is_current('list', value.type):
-                return [self._value_to_py(e) for e in self._list_to_py(value)]
-            if self._is_current('dictionary', value.type):
-                return self._dict_to_py(value)
-        raise runtime_error('=== 右侧包含无法序列化为 JSON 的值')
 
     # number 实例 → Python float
     def _number_to_py(self, obj):
@@ -3718,24 +3710,6 @@ class interpreter(object):
         sign = -1 if front < 0 else 1
         value = abs(front) + (back / 10 ** digits if digits else 0)
         return value * sign
-
-    # dictionary 实例 → Python dict（遍历哈希桶，桶内每个元素为 [key, value] 列表）
-    def _dict_to_py(self, obj):
-        result = {}
-        buckets_cell = obj.members.get('buckets')
-        if buckets_cell is None:
-            return result
-        buckets = self._list_to_py(buckets_cell.value)
-        for bucket in buckets:
-            if not isinstance(bucket, instance):
-                continue
-            for pair in self._list_to_py(bucket):
-                items = self._list_to_py(pair)
-                if len(items) < 2:
-                    continue
-                key = self._value_to_py(items[0])
-                result[key] = self._value_to_py(items[1])
-        return result
 
     # Python 对象（JSON 解析结果）→ TSuc 值
     def _py_to_value(self, obj):
@@ -3930,6 +3904,7 @@ class interpreter(object):
             receiver = self.eval_node(name_node['member']['left'], env)
             member_name = name_node['member']['right']['name']['value']
             callable_obj = self._get_member(receiver, member_name)
+
             # python_function 一律不注入 receiver（无论接收者是否为 library 类型），
             # 使 python_api.demo.fn(a, b) 与 f = python_api.demo.fn; f(a, b) 语义一致。
             if isinstance(callable_obj, python_function):

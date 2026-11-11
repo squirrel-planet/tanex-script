@@ -82,6 +82,7 @@ def build_menubar(app, win, kind):
     help_menu = tk.Menu(menubar, tearoff = 0)
     menubar.add_cascade(label = '帮助', menu = help_menu)
     _add(help_menu, '打开语言文档', app.open_docs)
+    _add(help_menu, '打开文档查看器', app.open_doc_viewer)
     _add(help_menu, '快捷键', _shortcuts)
     _add(help_menu, '关于 TanexScript IDLE', _about)
     return menubar

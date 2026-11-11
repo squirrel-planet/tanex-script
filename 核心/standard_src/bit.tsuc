@@ -43,15 +43,18 @@
 };
 
 ***bit_not = [[*n, integer]] => {
-    return n == 0 ? ([] => { return 1; })() : ([] => {
-        pow = 1;
-        temp = n;
-        { return temp != 0; } $$ {
-            pow = pow * 2;
-            temp \= 2;
-        };
-        return (pow - 1) - n;
-    })();
+    # 最小位宽补码：计算表示 n 所需的最小位宽，然后翻转所有位 #;
+    # 例如：n=5 (101) -> 3位 -> 111^101 = 010 = 2 #;
+    # n=0 特殊处理：0 需要 1 位表示，翻转为 1 #;
+    # 注意：三元分支若写成代码块，块内 return 会被代码块自身吞掉 #;
+    # 不会从 bit_not 返回，因此这里用三元表达式直接给出结果 #;
+    * pow = 1;
+    * temp = n;
+    { return temp != 0; } $$ {
+        pow = pow * 2;
+        temp \= 2;
+    };
+    return n == 0 ? 1 : ((pow - 1) - n);
 };
 
 ***to_binary = [[*n, integer]] => {

@@ -1,0 +1,30 @@
+# Python 缓存与虚拟环境
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+*.bak
+
+# 打包器：保留源码与资源，排除构建/发布产物
+打包器/build/
+打包器/dist/
+打包器/release/
+打包器/tools/_pyc_backup/
+
+# 安装包（大体积二进制）
+安装包/
+
+# 备份副本目录
+文档重构_backup/
+核心_backup_*/
+
+# 临时文件与一次性修复脚本
+核心/1.tscc
+核心/1.tsuc
+核心/IDLE/fix_*.py
+核心/runtime/repl_plain_backup.py
+
+.forge-permissions.json

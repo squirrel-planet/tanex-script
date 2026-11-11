@@ -92,6 +92,7 @@ class builtin_function:
         self.name = name or '<builtin>'
 
 class python_function:
+
     # 包装一个 Python 可调用对象，使 TanexScript 可像函数一样调用它。
     # py_callable 可能是普通函数、经 getattr 取得并已绑定 self 的 bound method、
     # 类或其它 callable；name 仅用于显示与报错。
@@ -102,6 +103,7 @@ class python_function:
         self.name = name or getattr(py_callable, '__name__', '<python_function>')
 
 class python_lazy_module:
+
     # python_api 模块的惰性占位：启动阶段只登记名字，首次被成员访问时才
     # 真正 import 对应 Python 模块。这样某个模块自身报错不会拖垮整个启动。
     def __init__(self, dotted):

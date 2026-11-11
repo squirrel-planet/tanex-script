@@ -52,7 +52,6 @@ _infix_lbp: dict[str, int] = {
     'in': prec_compare,
     '==': prec_equal,
     '!=': prec_equal,
-    '===': prec_equal,
     '?': prec_equal,
     '|': prec_equal,
     '&&': prec_and,

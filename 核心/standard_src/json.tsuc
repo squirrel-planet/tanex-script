@@ -221,6 +221,7 @@ _position = 0;
     first_character == 34 ? { result = _parse_string(text); } : {};
     first_character == 91 ? { result = _parse_array(text); } : {};
     first_character == 123 ? { result = _parse_object(text); } : {};
+    ~is_none(result) ? {} : { <- error{"json_parse: unexpected character at position " + _position}; };
     return result;
 };
 

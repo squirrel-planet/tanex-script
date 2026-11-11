@@ -11,6 +11,10 @@ class storage_cell:
         self.is_ref = False
         self.initialized = False
 
+        # 显式声明种类：None（隐式创建）/ 'var'(*) / 'ref'(**) / 'const'(***)
+        # 一经显式声明，不得用其他种类重新声明；需先 delete 解绑再声明。
+        self.decl_kind = None
+
 class address_space:
 
     def __init__(self):

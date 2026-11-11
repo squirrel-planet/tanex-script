@@ -47,6 +47,7 @@ def run_compiled_entry(compiled, source_path, debug_lines = None, program_args =
     interp.inject_args()
     if debug_lines:
         from runtime.debugger import debugger
+
         interp._debugger = debugger(interp, debug_lines, source_path)
     result, returned = interp.run_compiled(compiled, source_path)
     _finish_run(result, returned)

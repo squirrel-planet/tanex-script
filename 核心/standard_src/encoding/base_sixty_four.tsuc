@@ -57,16 +57,26 @@
         index = index + 1;
 
         * value_c = -1;
+        * has_c = false;
         index < text.data.size && text.data.index(index) != 61 ? {
             value_c = _base_sixty_four_index(text.data.index(index));
+            has_c = true;
             index = index + 1;
         } : {};
 
         * value_d = -1;
+        * has_d = false;
         index < text.data.size && text.data.index(index) != 61 ? {
             value_d = _base_sixty_four_index(text.data.index(index));
+            has_d = true;
             index = index + 1;
         } : {};
+
+        # 不能用 text.data.index(index - N) 回显字符 #;
+        # 遇到 = 提前停止时 index 偏小，会算出负下标并报错；这里只给出扫描位置 #;
+        value_a == -1 || value_b == -1 ? { <- error{"base_sixty_four_decode: 含有非法 Base64 字符，扫描位置 " + index}; } : {};
+        has_c && value_c == -1 ? { <- error{"base_sixty_four_decode: 含有非法 Base64 字符，扫描位置 " + index}; } : {};
+        has_d && value_d == -1 ? { <- error{"base_sixty_four_decode: 含有非法 Base64 字符，扫描位置 " + index}; } : {};
 
         * value_quad = value_a * 262144 + value_b * 4096 + (value_c >= 0 ? value_c : 0) * 64 + (value_d >= 0 ? value_d : 0);
 

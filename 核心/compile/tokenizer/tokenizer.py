@@ -375,8 +375,6 @@ class tokenizer(object):
             return self._multi_char('>>', start_line, start_col)
         if ch == '>' and self._peek(1) == '=':
             return self._multi_char('>=', start_line, start_col)
-        if ch == '=' and self._peek(1) == '=' and (self._peek(2) == '='):
-            return self._multi_char('===', start_line, start_col)
         if ch == '=' and self._peek(1) == '=':
             return self._multi_char('==', start_line, start_col)
         if ch == '=' and self._peek(1) == '>':

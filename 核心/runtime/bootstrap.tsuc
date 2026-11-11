@@ -397,7 +397,7 @@
     rem = num % den;
     r_back = 0;
     bd = 0;
-    { return rem != 0 && bd < 10; } $$ {
+    { return rem != 0 && bd < 3; } $$ {
         rem = rem * 10;
         d = rem \ den;
         rem = rem % den;

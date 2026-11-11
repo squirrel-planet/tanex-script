@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # Tanex Script 回归测试运行器
-#
 # 用法（务必在 核心/ 目录下执行）：
 #   python tests/regression/run.py                 跑全部用例
 #   python tests/regression/run.py test_pyapi      只跑指定用例（可写多个名字）
 #   python tests/regression/run.py --update        重新采集期望输出并覆盖 expected.json
-#
 # 每个用例的流程：
 #   cases/<name>.tsuc -> .build/<name>.tsuc -> main.py -c 编译
 #   -> main.py -r 运行 -> 去掉解释器装饰行后与 expected.json 逐字比对。
@@ -19,65 +17,66 @@ import shutil
 import subprocess
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-CORE = os.path.normpath(os.path.join(HERE, '..', '..'))
-CASES = os.path.join(HERE, 'cases')
-BUILD = os.path.join(HERE, '.build')
-EXPECTED = os.path.join(HERE, 'expected.json')
-
+here = os.path.dirname(os.path.abspath(__file__))
+core = os.path.normpath(os.path.join(here, '..', '..'))
+cases = os.path.join(here, 'cases')
+build = os.path.join(here, '.build')
+expected = os.path.join(here, 'expected.json')
 
 def clean_output(text):
     # 解释器会输出 "·开始运行 ..." / "·已编译 ..." 之类的装饰行，剔除后
     # 剩下的就是测试脚本自己 standard.output 出来的结果串。
     return ''.join(
-        line.strip() for line in text.splitlines()
-        if line.strip() and not line.strip().startswith('·')
+        (line.strip() for line in text.splitlines() if line.strip() and (not line.strip().startswith('·')))
     )
 
-
 def run_case(name):
-    src = os.path.join(CASES, name + '.tsuc')
-    tmp_tsuc = os.path.join(BUILD, name + '.tsuc')
-    tmp_tscc = os.path.join(BUILD, name + '.tscc')
+    src = os.path.join(cases, name + '.tsuc')
+    tmp_tsuc = os.path.join(build, name + '.tsuc')
+    tmp_tscc = os.path.join(build, name + '.tscc')
     shutil.copyfile(src, tmp_tsuc)
 
     compiled = subprocess.run(
         [sys.executable, 'main.py', '-f=' + tmp_tsuc, '-c'],
-        cwd=CORE, capture_output=True, text=True, timeout=120
+        cwd = core,
+        capture_output = True,
+        text = True,
+        timeout = 120
     )
     if compiled.returncode != 0:
         return 'COMPILE_FAIL', clean_output(compiled.stdout + compiled.stderr), ''
 
     result = subprocess.run(
         [sys.executable, 'main.py', '-f=' + tmp_tscc, '-r'],
-        cwd=CORE, capture_output=True, text=True, timeout=120
+        cwd = core,
+        capture_output = True,
+        text = True,
+        timeout = 120
     )
     actual = clean_output(result.stdout)
     if result.returncode != 0:
         return 'RUN_FAIL', actual, ''
     return 'OK', actual, actual
 
-
 def main(argv):
     update = '--update' in argv
     filters = [a for a in argv if not a.startswith('-')]
     names = sorted(
-        os.path.splitext(os.path.basename(p))[0]
-        for p in glob.glob(os.path.join(CASES, '*.tsuc'))
+        (os.path.splitext(os.path.basename(p))[0] for p in glob.glob(os.path.join(cases, '*.tsuc')))
     )
     if filters:
         names = [n for n in names if n in filters]
     if not names:
         print('没有匹配的回归用例')
         return 1
-    if not os.path.isfile(EXPECTED) and not update:
+    if not os.path.isfile(expected) and (not update):
         print('缺少 expected.json，请先运行：python tests/regression/run.py --update')
         return 1
 
-    os.makedirs(BUILD, exist_ok=True)
+    os.makedirs(build, exist_ok = True)
     expected = {}
-    if os.path.isfile(EXPECTED):
-        with open(EXPECTED, 'r', encoding='utf-8') as f:
+    if os.path.isfile(expected):
+        with open(expected, 'r', encoding = 'utf-8') as f:
             expected = json.load(f)
 
     collected, failed = {}, []
@@ -102,26 +101,25 @@ def main(argv):
             failed.append((name, 'FAIL_MARKER', actual))
             print('  FAIL  %-20s 输出中出现 *_FAIL 标记' % name)
         else:
-            print('  PASS  %-20s %d 项断言' % (name, actual.count('_OK|') + actual.count('_OK:')))
+            print('  PASS  %-20s %d 项断言' % name, actual.count('_OK|') + actual.count('_OK:'))
 
-    if update and not failed:
+    if update and (not failed):
         merged = dict(expected)
         merged.update(collected)
-        with open(EXPECTED, 'w', encoding='utf-8') as f:
-            json.dump(merged, f, ensure_ascii=False, indent=2)
+        with open(expected, 'w', encoding = 'utf-8') as f:
+            json.dump(merged, f, ensure_ascii = False, indent = 2)
         print('已更新 expected.json（用例数 %d）' % len(merged))
 
     # 清理本轮编译产物，保持 .build/ 为空
-    for p in glob.glob(os.path.join(BUILD, '*')):
+    for p in glob.glob(os.path.join(build, '*')):
         try:
             os.remove(p)
         except OSError:
             pass
 
     print('-' * 60)
-    print('回归测试：%d 个用例，%d 通过，%d 失败' % (len(names), len(names) - len(failed), len(failed)))
+    print('回归测试：%d 个用例，%d 通过，%d 失败' % len(names), len(names) - len(failed), len(failed))
     return 1 if failed else 0
-
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

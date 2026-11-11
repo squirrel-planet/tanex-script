@@ -1,5 +1,4 @@
 # TanexScript Shell 窗口
-#
 # Shell 不做任何自己的执行实现：它启动官方的 `python -u main.py -s`，
 # 把子进程的 stdin / stdout / stderr 接到文本控件上，等价于在终端里跑官方 REPL。
 # 语句完整性、续行缩进、静默语句、回显格式、错误输出全部由官方 REPL 决定。
@@ -19,18 +18,36 @@ from codeview import CodeView
 from runner import Proc
 from window import WindowMixin
 
-_ansi = re.compile(r'\x1b\[[0-9;?]*[a-zA-Z]')
+_ansi = re.compile('\\x1b\\[[0-9;?]*[a-zA-Z]')
+
 # 官方 REPL 在非交互输入下用 input() 输出提示符：'>>> ' 或 '... ' 加缩进
-_prompt_re = re.compile(r'^(>>>|\.\.\.)[ ]*$')
-_nav_keys = frozenset({
-    'Left', 'Right', 'Up', 'Down', 'Prior', 'Next', 'Home', 'End',
-    'Shift_L', 'Shift_R', 'Control_L', 'Control_R', 'Alt_L', 'Alt_R',
-    'Caps_Lock', 'Insert', 'Escape', 'Tab',
-})
-INPUT_MARKER = '输入 > '
+_prompt_re = re.compile('^(>>>|\\.\\.\\.)[ ]*$')
+_nav_keys = frozenset(
+    {
+        'Left',
+        'Right',
+        'Up',
+        'Down',
+        'Prior',
+        'Next',
+        'Home',
+        'End',
+        'Shift_L',
+        'Shift_R',
+        'Control_L',
+        'Control_R',
+        'Alt_L',
+        'Alt_R',
+        'Caps_Lock',
+        'Insert',
+        'Escape',
+        'Tab'
+    }
+)
+input_marker = '输入 > '
 
+class shell_window(tk.Tk, WindowMixin):
 
-class ShellWindow(tk.Tk, WindowMixin):
     def __init__(self, app):
         super().__init__()
         self.app = app
@@ -40,19 +57,34 @@ class ShellWindow(tk.Tk, WindowMixin):
         self.configure(background = config.BG)
         config.apply_icon(self)
 
-        self.view = CodeView(self, show_line_numbers = False,
-            on_change = self._on_input_change, height = 26)
+        self.view = CodeView(
+            self,
+            show_line_numbers = False,
+            on_change = self._on_input_change,
+            height = 26
+        )
         self.view.pack(fill = 'both', expand = True)
         self.text = self.view.text
 
         self.events = queue.Queue()
-        self.repl = Proc(runner.repl_command(), cwd = config.ROOT,
-            events = self.events, tag = 'shell')
-        self.task = None                 # 编译 / 运行 / 检查用的一次性进程
-        self.steps = []                  # 待执行的多步命令
-        self.temp_files = []             # 任务结束后要删掉的临时文件
+        self.repl = Proc(
+            runner.repl_command(),
+            cwd = config.ROOT,
+            events = self.events,
+            tag = 'shell'
+        )
 
-        self.state = 'starting'          # starting | prompt | busy | input | task
+        # 编译 / 运行 / 检查用的一次性进程
+        self.task = None
+
+        # 待执行的多步命令
+        self.steps = []
+
+        # 任务结束后要删掉的临时文件
+        self.temp_files = []
+
+        # starting | prompt | busy | input | task
+        self.state = 'starting'
         self.history = []
         self.hist_index = 0
         self.max_lines = 5000
@@ -65,8 +97,9 @@ class ShellWindow(tk.Tk, WindowMixin):
         self.protocol('WM_DELETE_WINDOW', self.app.quit_app)
 
         self._write_system('TanexScript IDLE — 交互式 Shell\n')
-        self._write_system('底层就是官方的 main.py -s：'
-            '每条语句以 ; 结尾后立即执行\n')
+        self._write_system(
+            '底层就是官方的 main.py -s：每条语句以 ; 结尾后立即执行\n'
+        )
         self._write_system('Ctrl+C 中断执行，Ctrl+F6 重启 Shell，F5 运行模块\n')
         self._write_system('正在启动运行时…\n')
         self._mark('iomark', 'end', 'right')
@@ -77,7 +110,6 @@ class ShellWindow(tk.Tk, WindowMixin):
         self.after(200, lambda: self.text.focus_set())
 
     # -- 文本输出 --
-
     def _write(self, text, tag = None):
         self.text.insert('end', text, (tag,) if tag else ())
         self._trim()
@@ -112,9 +144,8 @@ class ShellWindow(tk.Tk, WindowMixin):
         self.text.mark_gravity(name, gravity)
 
     # -- 提示符 --
-
+    # 自己画一个提示符（子进程已退出、或刚清空窗口时用）。
     def _emit_prompt(self, prompt_text = '>>> '):
-        """自己画一个提示符（子进程已退出、或刚清空窗口时用）。"""
         self.text.insert('end', prompt_text, ('prompt',))
         self._mark('cmd_start', 'end-1c linestart', 'left')
         self._mark('input_start', 'end-1c', 'left')
@@ -122,8 +153,8 @@ class ShellWindow(tk.Tk, WindowMixin):
         self.state = 'prompt'
         self.text.see('end')
 
+    # 把子进程输出末尾的提示符改成 prompt 配色，并进入可输入状态。
     def _take_prompt(self) -> bool:
-        """把子进程输出末尾的提示符改成 prompt 配色，并进入可输入状态。"""
         line = self._last_line()
         if not _prompt_re.match(line):
             return False
@@ -139,7 +170,7 @@ class ShellWindow(tk.Tk, WindowMixin):
         return True
 
     def _show_input_marker(self):
-        self.text.insert('end', INPUT_MARKER, ('input',))
+        self.text.insert('end', input_marker, ('input',))
         self._mark('input_start', 'end-1c', 'left')
         self.state = 'input'
         self.text.see('end')
@@ -166,7 +197,6 @@ class ShellWindow(tk.Tk, WindowMixin):
         return 'break'
 
     # -- 按键 --
-
     def _bind_keys(self):
         text = self.text
         text.bind('<Return>', self._on_return)
@@ -188,9 +218,11 @@ class ShellWindow(tk.Tk, WindowMixin):
         text = self.text
         sym = event.keysym
         if event.state & 0x0004 or event.state & 0x0008:
-            return None                      # 组合键交给各自绑定
+            # 组合键交给各自绑定
+            return None
         if self.state != 'prompt':
-            return 'break'                   # 非提示符状态不接受输入
+            # 非提示符状态不接受输入
+            return 'break'
         try:
             before = text.compare('insert', '<', 'input_start')
         except tk.TclError:
@@ -233,7 +265,8 @@ class ShellWindow(tk.Tk, WindowMixin):
     def _on_control_c(self, event = None):
         try:
             if self.text.tag_ranges('sel'):
-                return None                  # 有选区 → 复制
+                # 有选区 → 复制
+                return None
         except Exception:
             pass
         self.interrupt()
@@ -247,13 +280,14 @@ class ShellWindow(tk.Tk, WindowMixin):
                 pass
 
     # -- 提交 --
-
     def _on_return(self, event = None):
         if self.state in ('starting', 'busy', 'task'):
             return 'break'
         text = self.text
         raw = text.get('input_start', 'end-1c')
-        text.insert('end', '\n')             # 让子进程的输出从新行开始
+
+        # 让子进程的输出从新行开始
+        text.insert('end', '\n')
         self._mark('iomark', 'end', 'right')
         text.see('end')
         if self.state == 'input':
@@ -268,14 +302,17 @@ class ShellWindow(tk.Tk, WindowMixin):
         return 'break'
 
     # -- 子进程事件 --
-
     def _start_repl(self):
         self.state = 'starting'
         self._expect_input = False
         self._quiet_since = time.time()
         self.repl.kill()
-        self.repl = Proc(runner.repl_command(), cwd = config.ROOT,
-            events = self.events, tag = 'shell')
+        self.repl = Proc(
+            runner.repl_command(),
+            cwd = config.ROOT,
+            events = self.events,
+            tag = 'shell'
+        )
         self.repl.start()
 
     def _poll(self):
@@ -333,20 +370,17 @@ class ShellWindow(tk.Tk, WindowMixin):
         else:
             self._start_repl()
 
+    # 队列已空：判断子进程是在等命令、还是程序在 >> 读输入。
     def _settle(self):
-        """队列已空：判断子进程是在等命令、还是程序在 >> 读输入。"""
         if self.state in ('starting', 'busy'):
             if self._take_prompt():
                 return
-            if self._expect_input \
-                    and time.time() - self._quiet_since > 0.2 \
-                    and not self._last_line():
+            if self._expect_input and time.time() - self._quiet_since > 0.2 and (not self._last_line()):
                 self._show_input_marker()
 
     # -- 一次性任务：检查 / 编译 / 运行 --
-
+    # 把编辑器缓冲落成真实的 .tsuc 文件（放在源文件同目录，保证相对 import 可用）。
     def _materialize(self, source: str, path: str) -> str:
-        """把编辑器缓冲落成真实的 .tsuc 文件（放在源文件同目录，保证相对 import 可用）。"""
         if path and os.path.isfile(path):
             folder = os.path.dirname(os.path.abspath(path))
             base = os.path.splitext(os.path.basename(path))[0]
@@ -379,8 +413,12 @@ class ShellWindow(tk.Tk, WindowMixin):
         if not self.steps:
             return
         args = self.steps.pop(0)
-        self.task = Proc(args, cwd = config.ROOT,
-            events = self.events, tag = 'task')
+        self.task = Proc(
+            args,
+            cwd = config.ROOT,
+            events = self.events,
+            tag = 'task'
+        )
         if not self.task.start():
             self.task = None
             self.steps = []
@@ -388,10 +426,8 @@ class ShellWindow(tk.Tk, WindowMixin):
             self._emit_prompt()
 
     # -- 对外命令 --
-
-    def run_file(self, source: str, path: str, mode: str = 'run',
-            output: str | None = None):
-        """按官方 main.py 的流程处理一段源码。"""
+    # 按官方 main.py 的流程处理一段源码。
+    def run_file(self, source: str, path: str, mode: str = 'run', output: str | None = None):
         real = self._materialize(source, path)
         if mode == 'compile':
             if not output:
@@ -410,10 +446,12 @@ class ShellWindow(tk.Tk, WindowMixin):
         self._write_system(f'运行: {path}\n')
         product = os.path.splitext(real)[0] + '.tscc'
         self.temp_files.append(product)
-        self._run_steps([
-            runner.compile_command(real, product),
-            runner.run_command(product),
-        ])
+        self._run_steps(
+            [
+                runner.compile_command(real, product),
+                runner.run_command(product)
+            ]
+        )
 
     def compile_file(self, source: str, path: str, output: str | None):
         self.run_file(source, path, 'compile', output)
@@ -482,8 +520,12 @@ class ShellWindow(tk.Tk, WindowMixin):
 
     def set_workdir(self, event = None):
         from tkinter import filedialog
-        folder = filedialog.askdirectory(initialdir = self.repl.cwd,
-            parent = self, title = '选择 Shell 工作目录')
+
+        folder = filedialog.askdirectory(
+            initialdir = self.repl.cwd,
+            parent = self,
+            title = '选择 Shell 工作目录'
+        )
         if not folder:
             return 'break'
         self.repl.cwd = folder

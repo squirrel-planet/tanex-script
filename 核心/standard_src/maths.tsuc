@@ -68,9 +68,16 @@
     return result;
 };
 
-@ power_integer # 计算整数的幂，指数为非负整数 #;
+@ power_integer # 计算整数的幂，指数为非负整数（快速幂） #;
 *** power_integer = [*base, *exponent] => {
-    * result = exponent < 0 ? 0 : (exponent == 0 ? 1 : base * power_integer(base, exponent - 1));
+    * result = exponent < 0 ? 0 : 1;
+    * current = base;
+    * exp = exponent < 0 ? 0 : exponent;
+    { return exp != 0; } $$ {
+        exp % 2 == 1 ? { result = result * current; } : {};
+        current = current * current;
+        exp = exp \ 2;
+    };
     return result;
 };
 
