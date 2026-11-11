@@ -74,6 +74,7 @@ def main(argv):
         return 1
 
     os.makedirs(build, exist_ok = True)
+
     # expected 是模块级的 expected.json 路径；这里另用 expected_data 存期望值，
     # 否则局部变量会遮蔽全局路径，导致 os.path.isfile(expected) 抛 UnboundLocalError。
     expected_data = {}
