@@ -95,7 +95,7 @@ rand.random_choice(["a", "b", "c"]);  # => "a" 或 "b" 或 "c" #;
 > **签名**：`*** shuffle = [*list] => { *r = ~clone_list(list); *i = r.size - 1; { i > 0 } $$ { *j = random() % (i + 1); *tmp = r.index(i); ~node_set(r, i, r.index(j)); ~node_set(r, j, tmp); i = i - 1; }; $ r; }`  
 > **参数**：`list` (`List`) — 待洗牌列表  
 > **返回值**：`List` (新列表，元素顺序随机，原列表不变)  
-> **内部依赖**：`~clone_list`、`~node_set` (引导库/标准库内部辅助) [待确认：是否公开]  
+> **内部依赖**：`~clone_list`、`~node_set` (内部辅助函数，不对外公开)  
 > **复杂度**：O(N)  
 > **示例**：
 ```tanex script

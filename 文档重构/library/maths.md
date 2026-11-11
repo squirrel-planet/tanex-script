@@ -78,7 +78,7 @@ math.max('2.5', '3.1'); # => '3.1' #;
 > **签名**：`*** clamp = [*v, *lo, *hi] => { v < lo ? lo : (v > hi ? hi : v); }`  
 > **参数**：`v`(值), `lo`(下界), `hi`(上界) 均为 `Integer` \| `Number`  
 > **返回值**：限制后的数值  
-> **异常**：`lo > hi` 时行为未定义 [待确认]  
+> **异常**：`lo > hi` 时行为未定义 [待确认：TODO 明确边界行为并同步实现]  
 > **示例**：
 ```tanex script
 math.clamp(`5`, `0`, `10`);   # => `5 #;
@@ -165,7 +165,7 @@ math.factorial(`0);  # => `1 #;
 
 #### `power_integer` — 整数幂（快速幂）
 
-> **签名**：`*** power_integer = [*base, *exp] => { ... }` (快速幂算法 O(log exp))  
+> **签名**：`*** power_integer = [*base, *exponent] => { ... }` (二分快速幂 O(log exp))  
 > **参数**：`base`(`Integer`), `exp`(`Integer` ≥0)  
 > **返回值**：`Integer`  
 > **异常**：`exp < 0` 返回 `0`  

@@ -47,7 +47,7 @@ b64.base_sixty_four_encode([`72`, `101`, `108`, `108`, `111`]);  # => "SGVsbG8="
 > **示例**：
 ```tanex script
 b64.base_sixty_four_decode("SGVsbG8=");  # => [`72`, `101`, `108`, `108`, `111`]
-b64.base_sixty_four_decode("SGVsbG8!");  # 抛出错误: "base_sixty_four_decode: 第 7 个字符 '!' 不是合法 Base64 字符"
+b64.base_sixty_four_decode("SGVsbG8!");  # 抛出错误: "base_sixty_four_decode: 含有非法 Base64 字符，扫描位置 …"
 ```
 
 ---

@@ -74,10 +74,12 @@ def main(argv):
         return 1
 
     os.makedirs(build, exist_ok = True)
-    expected = {}
+    # expected 是模块级的 expected.json 路径；这里另用 expected_data 存期望值，
+    # 否则局部变量会遮蔽全局路径，导致 os.path.isfile(expected) 抛 UnboundLocalError。
+    expected_data = {}
     if os.path.isfile(expected):
         with open(expected, 'r', encoding = 'utf-8') as f:
-            expected = json.load(f)
+            expected_data = json.load(f)
 
     collected, failed = {}, []
     for name in names:
@@ -89,22 +91,22 @@ def main(argv):
         if update:
             collected[name] = actual
             print('  BASE  %-20s %s' % (name, actual[:100]))
-        elif name not in expected:
+        elif name not in expected_data:
             failed.append((name, 'NO_EXPECTED', actual))
             print('  FAIL  %-20s expected.json 中没有该用例' % name)
-        elif actual != expected[name]:
+        elif actual != expected_data[name]:
             failed.append((name, 'MISMATCH', actual))
             print('  FAIL  %-20s 输出不符' % name)
-            print('         期望: ' + expected[name][:200])
+            print('         期望: ' + expected_data[name][:200])
             print('         实际: ' + actual[:200])
         elif '_FAIL|' in actual or '_FAIL:' in actual:
             failed.append((name, 'FAIL_MARKER', actual))
             print('  FAIL  %-20s 输出中出现 *_FAIL 标记' % name)
         else:
-            print('  PASS  %-20s %d 项断言' % name, actual.count('_OK|') + actual.count('_OK:'))
+            print('  PASS  %-20s %d 项断言' % (name, actual.count('_OK|') + actual.count('_OK:')))
 
     if update and (not failed):
-        merged = dict(expected)
+        merged = dict(expected_data)
         merged.update(collected)
         with open(expected, 'w', encoding = 'utf-8') as f:
             json.dump(merged, f, ensure_ascii = False, indent = 2)
@@ -118,7 +120,7 @@ def main(argv):
             pass
 
     print('-' * 60)
-    print('回归测试：%d 个用例，%d 通过，%d 失败' % len(names), len(names) - len(failed), len(failed))
+    print('回归测试：%d 个用例，%d 通过，%d 失败' % (len(names), len(names) - len(failed), len(failed)))
     return 1 if failed else 0
 
 if __name__ == '__main__':

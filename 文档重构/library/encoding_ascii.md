@@ -49,6 +49,7 @@ ascii.ascii_decode([`72`, `101`, `108`, `108`, `111`]);  # => "Hello" #;
 > **签名**：`*** ascii_encode = [*text] => { *r=List{}; *i=0; { i < text.data.size } $$ { r.append(text.data.index(i)); i = i + 1; }; $ r; }`  
 > **参数**：`text` (`String`) — ASCII 字符串  
 > **返回值**：`List<Integer>` (字节码列表)  
+> **异常**：字符码超出 0-255 时抛出错误「ascii_encode: 字符码超出 0-255 范围，无法编码为字节」  
 > **复杂度**：O(N)  
 > **示例**：
 ```tanex script
